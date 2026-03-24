@@ -41,11 +41,11 @@ export default function Home() {
 
   return (
     <main style={{
-      background: '#17a8c2', minHeight: '100vh', display: 'flex',
+      background: '#f3f3f3', minHeight: '100vh', display: 'flex',
       flexDirection: 'column', alignItems: 'center', padding: '20px',
-      color: '#fff', fontFamily: 'system-ui, sans-serif'
+      color: '#111', fontFamily: 'system-ui, sans-serif'
     }}>
-      <h1 style={{ marginBottom: '20px', color: '#00ff88', letterSpacing: '2px', fontWeight: 'bold' }}>
+      <h1 style={{ marginBottom: '20px', color: '#175136', letterSpacing: '2px', fontWeight: 'bold' }}>
         APERTURE AI
       </h1>
       

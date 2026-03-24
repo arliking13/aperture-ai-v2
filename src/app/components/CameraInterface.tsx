@@ -218,7 +218,7 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
         position: 'relative', width: '100%',
         aspectRatio: cameraStarted ? (format==='square'?'1/1':format==='vertical'?'9/16':'4/3') : 'auto',
         minHeight: cameraStarted ? 'auto' : '500px',
-        borderRadius: 24, background: '#000', overflow: 'hidden', 
+        borderRadius: 24, background: '#fff', overflow: 'hidden', 
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
       }}>

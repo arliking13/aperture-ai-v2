@@ -41,7 +41,7 @@ export default function Home() {
 
   return (
     <main style={{
-      background: '#000', minHeight: '100vh', display: 'flex',
+      background: '#fff', minHeight: '100vh', display: 'flex',
       flexDirection: 'column', alignItems: 'center', padding: '20px',
       color: '#fff', fontFamily: 'system-ui, sans-serif'
     }}>

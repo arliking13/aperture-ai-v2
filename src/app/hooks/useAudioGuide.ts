@@ -133,9 +133,10 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
     stopSpeech();
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.volume = volume;
-    utterance.rate = rate;
-    utterance.pitch = pitch;
+utterance.volume = volume;
+utterance.rate = rate;
+utterance.pitch = pitch;
+utterance.lang = 'en-US';
 
     const voice = getSelectedVoice();
     if (voice) utterance.voice = voice;

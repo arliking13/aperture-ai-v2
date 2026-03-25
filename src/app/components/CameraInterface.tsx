@@ -86,8 +86,8 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
   speechEnabled: voiceAssistEnabled,
   soundEnabled: true,
   volume: 1,
-  rate: 0.92,
-  pitch: 1,
+  rate: 0.88,
+  pitch: 1.05,
   preferredVoiceName: ''
 });
 
@@ -228,13 +228,33 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
 ]);
 
 useEffect(() => {
-  if (hint) {
-    speakHint(hint);
-  } else {
+  const voiceEnabled =
+    voiceAssistEnabled &&
+    autoCaptureEnabled &&
+    autoSessionActive &&
+    activeCountdown === null;
+
+  if (!voiceEnabled || !hint) {
     stopSpeech();
     resetLastSpoken();
+    return;
   }
-}, [hint, speakHint, stopSpeech, resetLastSpoken]);
+
+  const id = window.setTimeout(() => {
+    speakHint(hint);
+  }, 450);
+
+  return () => window.clearTimeout(id);
+}, [
+  hint,
+  voiceAssistEnabled,
+  autoCaptureEnabled,
+  autoSessionActive,
+  activeCountdown,
+  speakHint,
+  stopSpeech,
+  resetLastSpoken
+]);
 
   const startCamera = async (overrideMode?: 'user' | 'environment') => {
     try {

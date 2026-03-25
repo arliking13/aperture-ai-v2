@@ -167,7 +167,8 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
         (track as any).applyConstraints({ advanced: [{ zoom: z }] }).catch((e: any) => console.log(e));
     }, 100);
   };
-  useEffect(() => {
+
+ useEffect(() => {
   const hintEnabled =
     cameraStarted &&
     autoCaptureEnabled &&
@@ -179,8 +180,7 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
     return;
   }
 
-  const newHint = generateLiveHint(null, null, stability);
-  setHint(newHint);
+  setHint(`TEST HINT | stability: ${stability}%`);
 }, [
   cameraStarted,
   autoCaptureEnabled,

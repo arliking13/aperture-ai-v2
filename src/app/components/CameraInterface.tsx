@@ -189,10 +189,10 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
   }
 
   const newHint = generateLiveHint(
-  lastLandmarks,
-  null,
-  stability
-);
+    lastLandmarks,
+    null,
+    stability
+  );
 
   setHint(newHint);
 }, [
@@ -200,7 +200,7 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
   autoCaptureEnabled,
   autoSessionActive,
   activeCountdown,
-  isStill,
+  stability,
   lastLandmarks
 ]);
 

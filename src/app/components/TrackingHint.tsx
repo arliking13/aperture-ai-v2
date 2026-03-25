@@ -9,22 +9,22 @@ export default function TrackingHint({ hint, hidden = false }: TrackingHintProps
   return (
     <div
       style={{
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  background: 'rgba(255,0,0,0.85)',
-  border: '2px solid yellow',
-  padding: '16px 24px',
-  borderRadius: 14,
-  color: '#fff',
-  fontSize: 20,
-  fontWeight: 700,
-  pointerEvents: 'none',
-  textAlign: 'center',
-  zIndex: 9999,
-  maxWidth: '80%',
-}}
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        background: 'rgba(0,0,0,0.5)',
+        padding: '10px 18px',
+        borderRadius: 14,
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: 500,
+        backdropFilter: 'blur(6px)',
+        pointerEvents: 'none',
+        textAlign: 'center',
+        zIndex: 20,
+        maxWidth: '80%',
+      }}
     >
       {hint}
     </div>

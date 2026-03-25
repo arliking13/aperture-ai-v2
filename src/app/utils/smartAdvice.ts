@@ -56,8 +56,9 @@ export function generateLiveHint(
 
   const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
 
-  if (nose.x < 0.4) return "Move right";
-  if (nose.x > 0.6) return "Move left";
+  
+if (nose.x < 0.2) return "You're almost out of frame (left)";
+if (nose.x > 0.8) return "You're almost out of frame (right)";
 
   if (shoulderWidth < 0.15) return "Move closer";
   if (shoulderWidth > 0.8) return "Step back";

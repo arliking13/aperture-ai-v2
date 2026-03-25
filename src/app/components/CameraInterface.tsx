@@ -4,6 +4,7 @@ import { Camera, SwitchCamera, Timer, TimerOff, Zap, ZapOff, Sparkles, Ratio, Sq
 import { usePoseTracker } from '../hooks/usePoseTracker';
 import { getGeminiAdvice } from '../actions'; 
 import TrackingHint from './TrackingHint';
+import { generateLiveHint } from '../utils/smartAdvice';
 
 // --- STYLES ---
 const iconBtn = { background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', width: 40, height: 40 };
@@ -178,13 +179,8 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
     return;
   }
 
-  if (stability < 10) {
-    setHint("Step into frame");
-  } else if (stability < 40) {
-    setHint("Hold still...");
-  } else {
-    setHint(null);
-  }
+  const newHint = generateLiveHint(null, null, stability);
+  setHint(newHint);
 }, [
   cameraStarted,
   autoCaptureEnabled,

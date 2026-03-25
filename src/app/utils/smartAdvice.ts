@@ -81,3 +81,41 @@ export function analyzeBrightness(ctx: CanvasRenderingContext2D, width: number, 
     }
     return Math.floor(colorSum / (data.length / 4));
 }
+
+export function generateLiveHint(
+  landmarks: any[] | null,
+  brightness: number,
+  stability: number
+): string | null {
+  if (!landmarks || landmarks.length === 0) {
+    return "Step into frame";
+  }
+
+  if (brightness < 40) return "Need more light";
+  if (brightness > 220) return "Too bright";
+
+  const nose = landmarks[0];
+  const leftEye = landmarks[2];
+  const rightEye = landmarks[5];
+  const leftShldr = landmarks[11];
+  const rightShldr = landmarks[12];
+
+  if (!nose || !leftEye || !rightEye || !leftShldr || !rightShldr) {
+    return "Step into frame";
+  }
+
+  const width = Math.abs(leftShldr.x - rightShldr.x);
+
+  if (nose.x < 0.4) return "Move right";
+  if (nose.x > 0.6) return "Move left";
+
+  if (width < 0.15) return "Move closer";
+  if (width > 0.8) return "Step back";
+
+  const tilt = Math.abs(leftEye.y - rightEye.y);
+  if (tilt > 0.08) return "Straighten head";
+
+  if (stability < 40) return "Hold still";
+
+  return null;
+}

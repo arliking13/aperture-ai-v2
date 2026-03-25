@@ -5,6 +5,7 @@ import { usePoseTracker } from '../hooks/usePoseTracker';
 import { getGeminiAdvice } from '../actions'; 
 import TrackingHint from './TrackingHint';
 import { generateLiveHint } from '../utils/smartAdvice';
+import { useAudioGuide } from '../hooks/useAudioGuide';
 
 // --- STYLES ---
 const iconBtn = { background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', width: 40, height: 40 };
@@ -73,6 +74,21 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
   const [hint, setHint] = useState<string | null>(null);
   const [isLoadingAdvice, setIsLoadingAdvice] = useState(false);
 
+  const {
+  speakHint,
+  stopSpeech,
+  resetLastSpoken,
+  playTick,
+  playShutter
+} = useAudioGuide({
+  speechEnabled: true,
+  soundEnabled: true,
+  volume: 1,
+  rate: 1,
+  pitch: 1,
+  preferredVoiceName: 'Samantha'
+});
+
   const resizeForAI = (base64Str: string, maxWidth = 800): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -94,6 +110,7 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
 
   const performCapture = useCallback(() => {
     if (!videoRef.current) return;
+    playShutter();
     const flashDiv = document.getElementById('flash-overlay');
     if (flashDiv) {
         flashDiv.style.opacity = '1';
@@ -105,7 +122,7 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
         setLastPhoto(image);
         setAdvice(null);
     }
-  }, [format, isMirrored, onCapture]);
+  }, [format, isMirrored, onCapture, playShutter]);
 
   const handleGetTip = async () => {
       if (!lastPhoto || isLoadingAdvice) return;
@@ -134,7 +151,8 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
   videoRef, 
   canvasRef, 
   performCapture, 
-  timerDuration || 3
+  timerDuration || 3,
+  playTick
 );
 
   const [manualCountdown, setManualCountdown] = useState<number | null>(null);
@@ -157,6 +175,7 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
         clearInterval(interval);
         setManualCountdown(null);
         performCapture();
+        playTick();
       } else { setManualCountdown(count); }
     }, 1000);
   };
@@ -203,6 +222,15 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
   stability,
   lastLandmarks
 ]);
+
+useEffect(() => {
+  if (hint) {
+    speakHint(hint);
+  } else {
+    stopSpeech();
+    resetLastSpoken();
+  }
+}, [hint, speakHint, stopSpeech, resetLastSpoken]);
 
   const startCamera = async (overrideMode?: 'user' | 'environment') => {
     try {

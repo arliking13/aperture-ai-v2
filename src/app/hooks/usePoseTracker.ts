@@ -23,7 +23,8 @@ export function usePoseTracker(
   videoRef: React.RefObject<HTMLVideoElement | null>,
   canvasRef: React.RefObject<HTMLCanvasElement | null>,
   onCaptureTrigger: () => void,
-  timerDuration: number
+  timerDuration: number,
+  playTick?: () => void
 ) {
   const [landmarker, setLandmarker] = useState<PoseLandmarker | null>(null);
   const [isAiReady, setIsAiReady] = useState(false);
@@ -129,7 +130,11 @@ export function usePoseTracker(
     if (countdownTimer.current) clearInterval(countdownTimer.current);
 
     countdownTimer.current = setInterval(() => {
-      count--;
+  count--;
+
+  if (count > 0 && playTick) {
+    playTick();
+  }
       if (count <= 0) {
         clearInterval(countdownTimer.current!);
         countdownTimer.current = null;

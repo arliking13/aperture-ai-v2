@@ -29,6 +29,7 @@ export function usePoseTracker(
   const [isAiReady, setIsAiReady] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [stability, setStability] = useState(0); 
+  const [lastLandmarks, setLastLandmarks] = useState<any[] | null>(null);
 
   const requestRef = useRef<number | null>(null);
   const previousLandmarks = useRef<any[] | null>(null);
@@ -90,6 +91,7 @@ export function usePoseTracker(
 
       if (results.landmarks && results.landmarks.length > 0) {
         const landmarks = results.landmarks[0];
+        setLastLandmarks(landmarks);
         
         const movement = calculateMovement(landmarks, previousLandmarks.current);
         if (movement < MOVEMENT_THRESHOLD) {
@@ -169,5 +171,13 @@ export function usePoseTracker(
 
   useEffect(() => { return () => stopTracking(); }, []);
 
-  return { isAiReady, startTracking, stopTracking, countdown, stability, isStill: stability > 20 };
+return {
+  isAiReady,
+  startTracking,
+  stopTracking,
+  countdown,
+  stability,
+  isStill: stability > 20,
+  lastLandmarks
+};
 }

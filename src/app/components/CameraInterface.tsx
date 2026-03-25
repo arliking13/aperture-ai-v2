@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, SwitchCamera, Timer, TimerOff, Zap, ZapOff, Sparkles, Ratio, Square, X, Loader2 } from 'lucide-react';
 import { usePoseTracker } from '../hooks/usePoseTracker';
 import { getGeminiAdvice } from '../actions'; 
+import TrackingHint from './TrackingHint';
 
 // --- STYLES ---
 const iconBtn = { background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', width: 40, height: 40 };
@@ -68,6 +69,7 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
   
   const [lastPhoto, setLastPhoto] = useState<string | null>(null);
   const [advice, setAdvice] = useState<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
   const [isLoadingAdvice, setIsLoadingAdvice] = useState(false);
 
   const resizeForAI = (base64Str: string, maxWidth = 800): Promise<string> => {
@@ -164,6 +166,20 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
         (track as any).applyConstraints({ advanced: [{ zoom: z }] }).catch((e: any) => console.log(e));
     }, 100);
   };
+  useEffect(() => {
+  if (!autoCaptureEnabled) {
+    setHint(null);
+    return;
+  }
+
+  if (stability < 10) {
+    setHint("Step into frame");
+  } else if (stability < 40) {
+    setHint("Hold still...");
+  } else {
+    setHint(null);
+  }
+}, [stability, autoCaptureEnabled]);
 
   const startCamera = async (overrideMode?: 'user' | 'environment') => {
     try {
@@ -241,6 +257,7 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', transform: isMirrored ? 'scaleX(-1)' : 'none', pointerEvents: 'none' }}
             />
         )}
+        <TrackingHint hint={hint} hidden={activeCountdown !== null} />
 
         {activeCountdown !== null && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)' }}>

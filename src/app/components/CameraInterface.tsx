@@ -122,12 +122,20 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
       }
   };
 
-  const { isAiReady, startTracking, stopTracking, countdown: aiCountdown, stability } = usePoseTracker(
-    videoRef, 
-    canvasRef, 
-    performCapture, 
-    timerDuration || 3
-  );
+ const {
+  isAiReady,
+  startTracking,
+  stopTracking,
+  countdown: aiCountdown,
+  stability,
+  isStill,
+  lastLandmarks
+} = usePoseTracker(
+  videoRef, 
+  canvasRef, 
+  performCapture, 
+  timerDuration || 3
+);
 
   const [manualCountdown, setManualCountdown] = useState<number | null>(null);
 
@@ -180,13 +188,20 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
     return;
   }
 
-  setHint(`TEST HINT | stability: ${stability}%`);
+  const newHint = generateLiveHint(
+  lastLandmarks,
+  null,
+  stability
+);
+
+  setHint(newHint);
 }, [
   cameraStarted,
   autoCaptureEnabled,
   autoSessionActive,
   activeCountdown,
-  stability
+  isStill,
+  lastLandmarks
 ]);
 
   const startCamera = async (overrideMode?: 'user' | 'environment') => {
@@ -280,16 +295,16 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
 
         {/* STATUS PILL */}
         {cameraStarted && autoCaptureEnabled && activeCountdown === null && (
-           <div style={{
-             position: 'absolute', top: 20,
-             background: 'rgba(0,0,0,0.6)', padding: '6px 16px', borderRadius: 20,
-             color: '#fff', fontSize: 12, fontWeight: 'bold', backdropFilter: 'blur(4px)',
-             border: stability > 0 ? '1px solid #00ff88' : '1px solid transparent',
-             transition: 'all 0.2s'
-           }}>
-             {stability > 0 ? `Stabilizing... ${stability}%` : "Pose to Start"}
-           </div>
-        )}
+   <div style={{
+     position: 'absolute', top: 20,
+     background: 'rgba(0,0,0,0.6)', padding: '6px 16px', borderRadius: 20,
+     color: '#fff', fontSize: 12, fontWeight: 'bold', backdropFilter: 'blur(4px)',
+     border: isStill ? '1px solid #00ff88' : '1px solid transparent',
+     transition: 'all 0.2s'
+   }}>
+     {isStill ? "Locked in" : "Pose to Start"}
+   </div>
+)}
 
         {/* CONTROLS */}
         {cameraStarted && (

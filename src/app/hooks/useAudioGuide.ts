@@ -14,7 +14,7 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
     speechEnabled = true,
     soundEnabled = true,
     volume = 1,
-    rate = 1,
+    rate = 0.92,
     pitch = 1,
     preferredVoiceName = '',
   } = options;
@@ -58,22 +58,72 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
     if (!voices.length) return null;
 
     if (preferredVoiceName) {
-      const preferred = voices.find((v) => v.name.includes(preferredVoiceName));
+      const preferred = voices.find((v) =>
+        v.name.toLowerCase().includes(preferredVoiceName.toLowerCase())
+      );
       if (preferred) return preferred;
     }
 
-    const englishVoice =
-      voices.find((v) => v.lang.startsWith('en') && /Samantha|Google|Microsoft/i.test(v.name)) ||
-      voices.find((v) => v.lang.startsWith('en')) ||
-      voices[0];
+    const preferredOrder = [
+      'samantha',
+      'ava',
+      'victoria',
+      'allison',
+      'karen',
+      'moira',
+      'serena',
+      'susan',
+    ];
 
-    return englishVoice ?? null;
+    for (const wanted of preferredOrder) {
+      const found = voices.find(
+        (v) =>
+          v.lang.toLowerCase().startsWith('en') &&
+          v.name.toLowerCase().includes(wanted)
+      );
+      if (found) return found;
+    }
+
+    return (
+      voices.find((v) => v.lang.toLowerCase().startsWith('en')) ||
+      voices[0] ||
+      null
+    );
   };
 
   const stopSpeech = () => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
+  };
+
+  const unlockAudio = async () => {
+    try {
+      if (tickAudioRef.current) {
+        tickAudioRef.current.muted = true;
+        tickAudioRef.current.currentTime = 0;
+        await tickAudioRef.current.play().catch(() => {});
+        tickAudioRef.current.pause();
+        tickAudioRef.current.currentTime = 0;
+        tickAudioRef.current.muted = false;
+      }
+
+      if (shutterAudioRef.current) {
+        shutterAudioRef.current.muted = true;
+        shutterAudioRef.current.currentTime = 0;
+        await shutterAudioRef.current.play().catch(() => {});
+        shutterAudioRef.current.pause();
+        shutterAudioRef.current.currentTime = 0;
+        shutterAudioRef.current.muted = false;
+      }
+
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance('');
+        utterance.volume = 0;
+        window.speechSynthesis.speak(utterance);
+        window.speechSynthesis.cancel();
+      }
+    } catch {}
   };
 
   const speakHint = (text: string | null) => {
@@ -121,5 +171,6 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
     resetLastSpoken,
     playTick,
     playShutter,
+    unlockAudio,
   };
 }

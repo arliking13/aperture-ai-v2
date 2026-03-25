@@ -73,20 +73,22 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
   const [advice, setAdvice] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [isLoadingAdvice, setIsLoadingAdvice] = useState(false);
+  const [voiceAssistEnabled, setVoiceAssistEnabled] = useState(true);
 
   const {
   speakHint,
   stopSpeech,
   resetLastSpoken,
   playTick,
-  playShutter
+  playShutter,
+  unlockAudio
 } = useAudioGuide({
-  speechEnabled: true,
+  speechEnabled: voiceAssistEnabled,
   soundEnabled: true,
   volume: 1,
-  rate: 1,
+  rate: 0.92,
   pitch: 1,
-  preferredVoiceName: 'Samantha'
+  preferredVoiceName: ''
 });
 
   const resizeForAI = (base64Str: string, maxWidth = 800): Promise<string> => {
@@ -170,14 +172,16 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
     setManualCountdown(timerDuration);
     let count = timerDuration;
     const interval = setInterval(() => {
-      count--;
-      if (count <= 0) {
-        clearInterval(interval);
-        setManualCountdown(null);
-        performCapture();
-        playTick();
-      } else { setManualCountdown(count); }
-    }, 1000);
+  count--;
+  if (count <= 0) {
+    clearInterval(interval);
+    setManualCountdown(null);
+    performCapture();
+  } else {
+    playTick();
+    setManualCountdown(count);
+  }
+}, 1000);
   };
 
   useEffect(() => { setAutoSessionActive(false); }, [autoCaptureEnabled]);
@@ -234,6 +238,7 @@ useEffect(() => {
 
   const startCamera = async (overrideMode?: 'user' | 'environment') => {
     try {
+      await unlockAudio();
       const modeToUse = overrideMode || facingMode;
       if (videoRef.current && videoRef.current.srcObject) {
          const oldStream = videoRef.current.srcObject as MediaStream;
@@ -335,44 +340,152 @@ useEffect(() => {
 )}
 
         {/* CONTROLS */}
-        {cameraStarted && (
-            <>
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)' }}>
-                    <button onClick={() => setAutoCaptureEnabled(!autoCaptureEnabled)}
-                        style={{...capsuleBtn, background: 'rgba(0,0,0,0.4)', border: autoCaptureEnabled ? '1px solid #00ff88' : '1px solid rgba(255,255,255,0.2)'}}>
-                        {autoCaptureEnabled ? <Zap size={14} color="#00ff88"/> : <ZapOff size={14} color="#fff"/>}
-                        <span style={{ color: autoCaptureEnabled ? '#00ff88' : '#fff' }}>{autoCaptureEnabled ? "AUTO" : "MANUAL"}</span>
-                    </button>
-                    <button onClick={toggleTimer} style={iconBtn}>
-                        {timerDuration === 0 ? <TimerOff size={20} /> : <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:0, fontSize:10, fontWeight:'bold'}}><Timer size={16} />{timerDuration}s</div>}
-                    </button>
-                </div>
+{cameraStarted && (
+  <>
+    <div
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        padding: '15px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)'
+      }}
+    >
+      {/* LEFT: AUTO */}
+      <button
+        onClick={() => setAutoCaptureEnabled(!autoCaptureEnabled)}
+        style={{
+          ...capsuleBtn,
+          background: 'rgba(0,0,0,0.4)',
+          border: autoCaptureEnabled
+            ? '1px solid #00ff88'
+            : '1px solid rgba(255,255,255,0.2)'
+        }}
+      >
+        {autoCaptureEnabled ? <Zap size={14} color="#00ff88" /> : <ZapOff size={14} color="#fff" />}
+        <span style={{ color: autoCaptureEnabled ? '#00ff88' : '#fff' }}>
+          {autoCaptureEnabled ? "AUTO" : "MANUAL"}
+        </span>
+      </button>
 
-                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)' }}>
-                    <div style={{ display: 'flex', gap: 15, marginBottom: 20 }}>
-                        {[0.5, 1, 2].map(z => ( (z >= zoomCap.min && z <= zoomCap.max) && (
-                            <button key={z} onClick={(e) => { e.stopPropagation(); handleZoomChange(z); }} 
-                                style={{ width: 30, height: 30, borderRadius: '50%', background: zoom === z ? 'rgba(255,215,0,0.9)' : 'rgba(0,0,0,0.5)', color: zoom === z ? '#000' : '#fff', fontSize: 10, fontWeight: 'bold', border: '1px solid rgba(255,255,255,0.2)' }}>
-                                {z}x
-                            </button>
-                        ) ))}
-                    </div>
-                    <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', padding: '0 10px' }}>
-                        <button onClick={cycleFormat} style={iconBtn}>
-                            <Ratio size={20} />
-                            <span style={{fontSize:9, marginTop:2, fontWeight:'bold'}}>{format === 'vertical' ? '9:16' : format === 'square' ? '1:1' : '4:3'}</span>
-                        </button>
-                        <button onClick={handleShutterPress} disabled={isProcessing}
-                            style={{ width: 72, height: 72, borderRadius: '50%', background: isProcessing ? '#333' : (autoCaptureEnabled && autoSessionActive ? '#ff3b30' : '#fff'), border: '4px solid rgba(0,0,0,0.1)', outline: '4px solid #fff', outlineOffset: 2, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {autoCaptureEnabled && autoSessionActive ? <Square fill="#fff" size={24} /> : null}
-                        </button>
-                        <button onClick={switchCamera} style={iconBtn}>
-                            <SwitchCamera size={22} />
-                        </button>
-                    </div>
-                </div>
-            </>
+      {/* RIGHT: TIMER + VOICE */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <button onClick={toggleTimer} style={iconBtn}>
+          {timerDuration === 0 ? (
+            <TimerOff size={20} />
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 0,
+                fontSize: 10,
+                fontWeight: 'bold'
+              }}
+            >
+              <Timer size={16} />
+              {timerDuration}s
+            </div>
+          )}
+        </button>
+
+        <button onClick={() => setVoiceAssistEnabled(v => !v)} style={iconBtn}>
+          <span style={{ fontSize: 10, fontWeight: 'bold' }}>
+            {voiceAssistEnabled ? 'VOICE' : 'MUTE'}
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <div
+      style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        padding: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)'
+      }}
+    >
+      <div style={{ display: 'flex', gap: 15, marginBottom: 20 }}>
+        {[0.5, 1, 2].map(
+          (z) =>
+            z >= zoomCap.min &&
+            z <= zoomCap.max && (
+              <button
+                key={z}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleZoomChange(z);
+                }}
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: '50%',
+                  background: zoom === z ? 'rgba(255,215,0,0.9)' : 'rgba(0,0,0,0.5)',
+                  color: zoom === z ? '#000' : '#fff',
+                  fontSize: 10,
+                  fontWeight: 'bold',
+                  border: '1px solid rgba(255,255,255,0.2)'
+                }}
+              >
+                {z}x
+              </button>
+            )
         )}
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          width: '100%',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '0 10px'
+        }}
+      >
+        <button onClick={cycleFormat} style={iconBtn}>
+          <Ratio size={20} />
+          <span style={{ fontSize: 9, marginTop: 2, fontWeight: 'bold' }}>
+            {format === 'vertical' ? '9:16' : format === 'square' ? '1:1' : '4:3'}
+          </span>
+        </button>
+
+        <button
+          onClick={handleShutterPress}
+          disabled={isProcessing}
+          style={{
+            width: 72,
+            height: 72,
+            borderRadius: '50%',
+            background: isProcessing ? '#333' : autoCaptureEnabled && autoSessionActive ? '#ff3b30' : '#fff',
+            border: '4px solid rgba(0,0,0,0.1)',
+            outline: '4px solid #fff',
+            outlineOffset: 2,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          {autoCaptureEnabled && autoSessionActive ? <Square fill="#fff" size={24} /> : null}
+        </button>
+
+        <button onClick={switchCamera} style={iconBtn}>
+          <SwitchCamera size={22} />
+        </button>
+      </div>
+    </div>
+  </>
+)}
       </div>
 
       {/* --- AI ADVICE --- */}

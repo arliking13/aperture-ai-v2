@@ -60,8 +60,16 @@ export function usePoseTracker(
   }, []);
   useEffect(() => {
   timerDurationRef.current = timerDuration;
+
+  if (countdownTimer.current) {
+    clearInterval(countdownTimer.current);
+    countdownTimer.current = null;
+    setCountdown(null);
+  }
+
+  stillFrames.current = 0;
+  setStability(0);
 }, [timerDuration]);
-  
 
   const detectPose = () => {
     const video = videoRef.current;

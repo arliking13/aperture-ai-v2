@@ -125,28 +125,32 @@ export function usePoseTracker(
   };
 
   const startCountdown = () => {
-    let count = timerDurationRef.current;
-    setCountdown(count);
-    if (countdownTimer.current) clearInterval(countdownTimer.current);
-
-    countdownTimer.current = setInterval(() => {
-  count--;
+  let count = timerDurationRef.current;
+  setCountdown(count);
 
   if (count > 0 && playTick) {
     playTick();
   }
-      if (count <= 0) {
-        clearInterval(countdownTimer.current!);
-        countdownTimer.current = null;
-        setCountdown(null);
-        stillFrames.current = 0; 
-        onCaptureTrigger();
-      } else {
-        setCountdown(count);
-      }
-    }, 1000);
-  };
 
+  if (countdownTimer.current) clearInterval(countdownTimer.current);
+
+  countdownTimer.current = setInterval(() => {
+    count--;
+
+    if (count <= 0) {
+      clearInterval(countdownTimer.current!);
+      countdownTimer.current = null;
+      setCountdown(null);
+      stillFrames.current = 0; 
+      onCaptureTrigger();
+    } else {
+      setCountdown(count);
+      if (playTick) {
+        playTick();
+      }
+    }
+  }, 1000);
+};
   const startTracking = () => {
     if (!requestRef.current) detectPose();
   };

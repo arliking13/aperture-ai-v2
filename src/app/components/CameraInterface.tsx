@@ -170,16 +170,19 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
       return;
     }
     setManualCountdown(timerDuration);
-    let count = timerDuration;
-    const interval = setInterval(() => {
+playTick();
+
+let count = timerDuration;
+const interval = setInterval(() => {
   count--;
+
   if (count <= 0) {
     clearInterval(interval);
     setManualCountdown(null);
     performCapture();
   } else {
-    playTick();
     setManualCountdown(count);
+    playTick();
   }
 }, 1000);
   };

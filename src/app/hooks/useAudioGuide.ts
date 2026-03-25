@@ -14,31 +14,18 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
     speechEnabled = true,
     soundEnabled = true,
     volume = 1,
-    rate = 0.92,
-    pitch = 1,
+    rate = 0.88,
+    pitch = 1.05,
     preferredVoiceName = '',
   } = options;
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const lastSpokenRef = useRef<string | null>(null);
 
-  const tickAudioRef = useRef<HTMLAudioElement | null>(null);
-  const shutterAudioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    tickAudioRef.current = new Audio('/tick.mp3');
-    shutterAudioRef.current = new Audio('/shutter.mp3');
-
-    if (tickAudioRef.current) {
-      tickAudioRef.current.preload = 'auto';
-      tickAudioRef.current.volume = volume;
-    }
-
-    if (shutterAudioRef.current) {
-      shutterAudioRef.current.preload = 'auto';
-      shutterAudioRef.current.volume = volume;
-    }
-  }, [volume]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const tickBufferRef = useRef<AudioBuffer | null>(null);
+  const shutterBufferRef = useRef<AudioBuffer | null>(null);
+  const audioUnlockedRef = useRef(false);
 
   useEffect(() => {
     const loadVoices = () => {
@@ -51,6 +38,53 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
 
     return () => {
       window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
+
+  const getAudioContext = () => {
+    if (!audioContextRef.current) {
+      const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!Ctx) return null;
+      audioContextRef.current = new Ctx();
+    }
+    return audioContextRef.current;
+  };
+
+  const loadSoundBuffer = async (url: string): Promise<AudioBuffer | null> => {
+    try {
+      const ctx = getAudioContext();
+      if (!ctx) return null;
+
+      const response = await fetch(url);
+      const arrayBuffer = await response.arrayBuffer();
+      return await ctx.decodeAudioData(arrayBuffer.slice(0));
+    } catch {
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const prepareBuffers = async () => {
+      const ctx = getAudioContext();
+      if (!ctx) return;
+
+      const [tickBuffer, shutterBuffer] = await Promise.all([
+        loadSoundBuffer('/tick.mp3'),
+        loadSoundBuffer('/shutter.mp3'),
+      ]);
+
+      if (!mounted) return;
+
+      tickBufferRef.current = tickBuffer;
+      shutterBufferRef.current = shutterBuffer;
+    };
+
+    prepareBuffers();
+
+    return () => {
+      mounted = false;
     };
   }, []);
 
@@ -99,23 +133,14 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
 
   const unlockAudio = async () => {
     try {
-      if (tickAudioRef.current) {
-        tickAudioRef.current.muted = true;
-        tickAudioRef.current.currentTime = 0;
-        await tickAudioRef.current.play().catch(() => {});
-        tickAudioRef.current.pause();
-        tickAudioRef.current.currentTime = 0;
-        tickAudioRef.current.muted = false;
+      const ctx = getAudioContext();
+      if (!ctx) return;
+
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
       }
 
-      if (shutterAudioRef.current) {
-        shutterAudioRef.current.muted = true;
-        shutterAudioRef.current.currentTime = 0;
-        await shutterAudioRef.current.play().catch(() => {});
-        shutterAudioRef.current.pause();
-        shutterAudioRef.current.currentTime = 0;
-        shutterAudioRef.current.muted = false;
-      }
+      audioUnlockedRef.current = true;
 
       if ('speechSynthesis' in window) {
         const utterance = new SpeechSynthesisUtterance('');
@@ -126,17 +151,41 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
     } catch {}
   };
 
+  const playBuffer = async (buffer: AudioBuffer | null) => {
+    if (!soundEnabled || !buffer) return;
+
+    try {
+      const ctx = getAudioContext();
+      if (!ctx) return;
+
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+
+      const source = ctx.createBufferSource();
+      const gainNode = ctx.createGain();
+
+      gainNode.gain.value = volume;
+
+      source.buffer = buffer;
+      source.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      source.start(0);
+    } catch {}
+  };
+
   const speakHint = (text: string | null) => {
     if (!speechEnabled || !text || !('speechSynthesis' in window)) return;
+    if (!audioUnlockedRef.current) return;
     if (lastSpokenRef.current === text) return;
 
     stopSpeech();
 
     const utterance = new SpeechSynthesisUtterance(text);
-utterance.volume = volume;
-utterance.rate = rate;
-utterance.pitch = pitch;
-utterance.lang = 'en-US';
+    utterance.volume = volume;
+    utterance.rate = rate;
+    utterance.pitch = pitch;
+    utterance.lang = 'en-US';
 
     const voice = getSelectedVoice();
     if (voice) utterance.voice = voice;
@@ -150,19 +199,11 @@ utterance.lang = 'en-US';
   };
 
   const playTick = async () => {
-    if (!soundEnabled || !tickAudioRef.current) return;
-    try {
-      tickAudioRef.current.currentTime = 0;
-      await tickAudioRef.current.play();
-    } catch {}
+    await playBuffer(tickBufferRef.current);
   };
 
   const playShutter = async () => {
-    if (!soundEnabled || !shutterAudioRef.current) return;
-    try {
-      shutterAudioRef.current.currentTime = 0;
-      await shutterAudioRef.current.play();
-    } catch {}
+    await playBuffer(shutterBufferRef.current);
   };
 
   return {

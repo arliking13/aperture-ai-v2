@@ -167,7 +167,13 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
     }, 100);
   };
   useEffect(() => {
-  if (!autoCaptureEnabled) {
+  const hintEnabled =
+    cameraStarted &&
+    autoCaptureEnabled &&
+    autoSessionActive &&
+    activeCountdown === null;
+
+  if (!hintEnabled) {
     setHint(null);
     return;
   }
@@ -179,7 +185,13 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
   } else {
     setHint(null);
   }
-}, [stability, autoCaptureEnabled]);
+}, [
+  cameraStarted,
+  autoCaptureEnabled,
+  autoSessionActive,
+  activeCountdown,
+  stability
+]);
 
   const startCamera = async (overrideMode?: 'user' | 'environment') => {
     try {
@@ -257,7 +269,10 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', transform: isMirrored ? 'scaleX(-1)' : 'none', pointerEvents: 'none' }}
             />
         )}
-        <TrackingHint hint={hint} hidden={activeCountdown !== null} />
+        <TrackingHint
+  hint={hint}
+  hidden={!cameraStarted || !autoCaptureEnabled || !autoSessionActive || activeCountdown !== null}
+/>
 
         {activeCountdown !== null && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)' }}>

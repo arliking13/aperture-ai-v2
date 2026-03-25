@@ -34,6 +34,7 @@ export function usePoseTracker(
   const previousLandmarks = useRef<any[] | null>(null);
   const stillFrames = useRef(0);
   const countdownTimer = useRef<NodeJS.Timeout | null>(null);
+  const timerDurationRef = useRef(timerDuration);
 
   useEffect(() => {
     async function loadAI() {
@@ -57,15 +58,19 @@ export function usePoseTracker(
     }
     loadAI();
   }, []);
+  useEffect(() => {
+  timerDurationRef.current = timerDuration;
+}, [timerDuration]);
+  
 
   const detectPose = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
     if (!landmarker || !video || !canvas || video.readyState < 2) {
-      requestRef.current = requestAnimationFrame(detectPose);
-      return;
-    }
+  requestRef.current = requestAnimationFrame(detectPose);
+  return;
+}
 
     const results = landmarker.detectForVideo(video, performance.now());
     const ctx = canvas.getContext('2d');
@@ -109,7 +114,7 @@ export function usePoseTracker(
   };
 
   const startCountdown = () => {
-    let count = timerDuration;
+    let count = timerDurationRef.current;
     setCountdown(count);
     if (countdownTimer.current) clearInterval(countdownTimer.current);
 

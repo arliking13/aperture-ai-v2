@@ -8,6 +8,7 @@ import { generateLiveHint } from '../utils/smartAdvice';
 import { useAudioGuide } from '../hooks/useAudioGuide';
 import { takeSnapshot, resizeForAI } from '../utils/cameraHelpers';
 import { useManualCountdown } from '../hooks/useManualCountdown';
+import { useCameraSession } from '../hooks/useCameraSession';
 
 
 // --- STYLES ---
@@ -61,6 +62,9 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
 
 const { manualCountdown, startCountdown, cancelCountdown } = useManualCountdown();
 
+const { startCamera: startCameraSession } = useCameraSession();
+
+
 
 const performCapture = useCallback(() => {
     if (!videoRef.current) return;
@@ -112,7 +116,7 @@ const performCapture = useCallback(() => {
 
 
   const handleShutterPress = () => {
-    console.log('manualCountdown:', manualCountdown, 'autoCaptureEnabled:', autoCaptureEnabled);
+   
   if (isProcessing) return;
 
   if (autoCaptureEnabled) {
@@ -217,33 +221,20 @@ useEffect(() => {
   resetLastSpoken
 ]);
 
-  const startCamera = async (overrideMode?: 'user' | 'environment') => {
-    try {
-      await unlockAudio();
-      const modeToUse = overrideMode || facingMode;
-      if (videoRef.current && videoRef.current.srcObject) {
-         const oldStream = videoRef.current.srcObject as MediaStream;
-         oldStream.getTracks().forEach(track => track.stop());
-      }
-      const constraints = {
-        video: { facingMode: modeToUse, width: { ideal: 1920 }, height: { ideal: 1080 }, zoom: true } as any
-      };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadeddata = () => {
-          videoRef.current?.play();
-          setCameraStarted(true);
-          const track = stream.getVideoTracks()[0];
-          const caps = (track.getCapabilities() as any) || {};
-          if (caps.zoom) {
-            setZoomCap({ min: caps.zoom.min, max: caps.zoom.max });
-            setZoom(1);
-          }
-        };
-      }
-    } catch (e) { alert("Camera Error: " + e); }
-  };
+  const startCamera = useCallback(async (overrideMode?: 'user' | 'environment') => {
+  try {
+    await startCameraSession({
+      videoRef,
+      facingMode: overrideMode || facingMode,
+      unlockAudio,
+      setCameraStarted,
+      setZoomCap,
+      setZoom,
+    });
+  } catch (e) {
+    alert('Camera Error: ' + e);
+  }
+}, [startCameraSession, facingMode, unlockAudio]);
 
   // --- LOGIC: Only run AI if Auto Mode is ON. Otherwise, kill it. ---
   useEffect(() => { 

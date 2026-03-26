@@ -56,15 +56,18 @@ export function generateLiveHint(
 
   const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
 
-  
-if (nose.x < 0.2) return "You're almost out of frame (left)";
-if (nose.x > 0.8) return "You're almost out of frame (right)";
+  // Вместо отдельных voice-фраз left/right просто просим вернуться в кадр
+  if (nose.x < 0.2 || nose.x > 0.8) {
+    return "Step into frame";
+  }
 
   if (shoulderWidth < 0.15) return "Move closer";
   if (shoulderWidth > 0.8) return "Step back";
 
+  // Пока не используем отдельную voice-фразу для tilt,
+  // чтобы всё совпадало с имеющимися записями
   const tilt = Math.abs(leftEye.y - rightEye.y);
-  if (tilt > 0.08) return "Straighten head";
+  if (tilt > 0.08) return "Hold still";
 
   if (stability < 40) return "Hold still";
 

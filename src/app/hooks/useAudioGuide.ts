@@ -25,13 +25,13 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
 
   const lastSpokenRef = useRef<string | null>(null);
   const lastSpokenAtRef = useRef<number>(0);
-const HINT_COOLDOWN_MS = 2500;
+  const currentVoiceAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const HINT_COOLDOWN_MS = 2500;
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const tickBufferRef = useRef<AudioBuffer | null>(null);
   const shutterBufferRef = useRef<AudioBuffer | null>(null);
-  const voiceBuffersRef = useRef<Record<string, AudioBuffer | null>>({});
-  const currentVoiceSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const audioUnlockedRef = useRef(false);
 
   const getAudioContext = () => {
@@ -72,15 +72,6 @@ const HINT_COOLDOWN_MS = 2500;
       const tickPromise = loadSoundBuffer('/tick.mp3');
       const shutterPromise = loadSoundBuffer('/shutter.mp3');
 
-      const voiceEntries = Object.entries(voiceMap);
-
-      const loadedVoiceEntries = await Promise.all(
-        voiceEntries.map(async ([hint, url]) => {
-          const buffer = await loadSoundBuffer(url);
-          return [hint, buffer] as const;
-        })
-      );
-
       const [tickBuffer, shutterBuffer] = await Promise.all([
         tickPromise,
         shutterPromise,
@@ -90,14 +81,10 @@ const HINT_COOLDOWN_MS = 2500;
 
       tickBufferRef.current = tickBuffer;
       shutterBufferRef.current = shutterBuffer;
-      voiceBuffersRef.current = Object.fromEntries(loadedVoiceEntries);
 
       console.log('Audio buffers ready:', {
         tick: !!tickBuffer,
         shutter: !!shutterBuffer,
-        voices: Object.fromEntries(
-          Object.entries(voiceBuffersRef.current).map(([key, value]) => [key, !!value])
-        ),
       });
     };
 
@@ -117,12 +104,19 @@ const HINT_COOLDOWN_MS = 2500;
         await ctx.resume();
       }
 
-      // tiny silent buffer to warm up some browsers
+      // Warm up Web Audio for tick / shutter
       const buffer = ctx.createBuffer(1, 1, 22050);
       const source = ctx.createBufferSource();
       source.buffer = buffer;
       source.connect(ctx.destination);
       source.start(0);
+
+      // Warm up HTMLAudio for voice
+      const silentAudio = new Audio();
+      silentAudio.volume = 0;
+      try {
+        await silentAudio.play();
+      } catch {}
 
       audioUnlockedRef.current = true;
       console.log('Audio unlocked');
@@ -158,13 +152,16 @@ const HINT_COOLDOWN_MS = 2500;
 
   const stopSpeech = () => {
     try {
-      currentVoiceSourceRef.current?.stop();
+      if (currentVoiceAudioRef.current) {
+        currentVoiceAudioRef.current.pause();
+        currentVoiceAudioRef.current.currentTime = 0;
+      }
     } catch {}
 
-    currentVoiceSourceRef.current = null;
+    currentVoiceAudioRef.current = null;
   };
 
-  const speakHint = async (text: string | null) => {
+  const speakHint = (text: string | null) => {
     console.log('speakHint text:', text);
 
     if (!speechEnabled || !text) return;
@@ -172,58 +169,46 @@ const HINT_COOLDOWN_MS = 2500;
       console.log('Audio not unlocked yet');
       return;
     }
+
     const now = Date.now();
 
-if (
-  lastSpokenRef.current === text &&
-  now - lastSpokenAtRef.current < HINT_COOLDOWN_MS
-) {
-  console.log('Skipping repeated hint:', text);
-  return;
-}
+    if (
+      lastSpokenRef.current === text &&
+      now - lastSpokenAtRef.current < HINT_COOLDOWN_MS
+    ) {
+      console.log('Skipping repeated hint:', text);
+      return;
+    }
 
-    const buffer = voiceBuffersRef.current[text];
-    console.log('Voice buffer found:', !!buffer, 'for text:', text);
+    const url = voiceMap[text];
+    console.log('voice url:', url);
 
-    if (!buffer) return;
+    if (!url) return;
 
     try {
-      const ctx = getAudioContext();
-      if (!ctx) return;
-
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
-      }
-
       stopSpeech();
 
-      const source = ctx.createBufferSource();
-      const gainNode = ctx.createGain();
+      const audio = new Audio(url);
+      audio.volume = volume;
 
-      gainNode.gain.value = volume;
-      source.buffer = buffer;
-      source.connect(gainNode);
-      gainNode.connect(ctx.destination);
+      audio.play().catch((e) => {
+        console.log('Audio play blocked:', e);
+      });
 
-      source.onended = () => {
-        if (currentVoiceSourceRef.current === source) {
-          currentVoiceSourceRef.current = null;
-        }
-      };
+      currentVoiceAudioRef.current = audio;
+      lastSpokenRef.current = text;
+      lastSpokenAtRef.current = now;
 
-      currentVoiceSourceRef.current = source;
-source.start(0);
-lastSpokenRef.current = text;
-lastSpokenAtRef.current = Date.now();
+      console.log('voice started:', text);
     } catch (e) {
-      console.log('speakHint playback error:', e);
+      console.log('voice error:', e);
     }
   };
 
   const resetLastSpoken = () => {
-  lastSpokenRef.current = null;
-  lastSpokenAtRef.current = 0;
-};
+    lastSpokenRef.current = null;
+    lastSpokenAtRef.current = 0;
+  };
 
   const playTick = async () => {
     await playBuffer(tickBufferRef.current);

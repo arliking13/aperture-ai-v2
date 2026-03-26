@@ -113,7 +113,8 @@ const performCapture = useCallback(() => {
 
 
   const handleShutterPress = () => {
-   
+  unlockAudio();
+
   if (isProcessing) return;
 
   if (autoCaptureEnabled) {
@@ -121,7 +122,6 @@ const performCapture = useCallback(() => {
     return;
   }
 
-  // Если manual countdown уже идет — повторное нажатие отменяет его
   if (manualCountdown !== null) {
     cancelCountdown();
     return;
@@ -203,9 +203,9 @@ useEffect(() => {
     activeCountdown === null;
 
   if (!voiceEnabled || !hint) {
-  stopSpeech();
-  return;
-}
+    stopSpeech();
+    return;
+  }
 
   const id = window.setTimeout(() => {
     speakHint(hint);
@@ -219,8 +219,7 @@ useEffect(() => {
   autoSessionActive,
   activeCountdown,
   speakHint,
-  stopSpeech,
-  resetLastSpoken
+  stopSpeech
 ]);
 
   const startCamera = useCallback(async (overrideMode?: 'user' | 'environment') => {

@@ -55,9 +55,6 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
   speechEnabled: voiceAssistEnabled,
   soundEnabled: true,
   volume: 1,
-  rate: 0.88,
-  pitch: 1.05,
-  preferredVoiceName: ''
 });
 
 const { manualCountdown, startCountdown, cancelCountdown } = useManualCountdown();
@@ -206,14 +203,13 @@ useEffect(() => {
     activeCountdown === null;
 
   if (!voiceEnabled || !hint) {
-    stopSpeech();
-    resetLastSpoken();
-    return;
-  }
+  stopSpeech();
+  return;
+}
 
   const id = window.setTimeout(() => {
     speakHint(hint);
-  }, 450);
+  }, 250);
 
   return () => window.clearTimeout(id);
 }, [

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 type AudioGuideOptions = {
   speechEnabled?: boolean;
@@ -9,37 +9,31 @@ type AudioGuideOptions = {
   preferredVoiceName?: string;
 };
 
+const voiceMap: Record<string, string> = {
+  'Step into frame': '/voice/step-into-frame.mp3',
+  'Move closer': '/voice/move-closer.mp3',
+  'Step back': '/voice/step-back.mp3',
+  'Hold still': '/voice/hold-still.mp3',
+  'Perfect': '/voice/perfect.mp3',
+  'Need more light': '/voice/need-more-light.mp3',
+  'Too bright': '/voice/too-bright.mp3',
+};
+
 export function useAudioGuide(options: AudioGuideOptions = {}) {
   const {
     speechEnabled = true,
     soundEnabled = true,
     volume = 1,
-    rate = 0.88,
-    pitch = 1.05,
-    preferredVoiceName = '',
   } = options;
 
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const lastSpokenRef = useRef<string | null>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const tickBufferRef = useRef<AudioBuffer | null>(null);
   const shutterBufferRef = useRef<AudioBuffer | null>(null);
+  const voiceBuffersRef = useRef<Record<string, AudioBuffer | null>>({});
+  const currentVoiceSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const audioUnlockedRef = useRef(false);
-
-  useEffect(() => {
-    const loadVoices = () => {
-      const availableVoices = window.speechSynthesis.getVoices();
-      setVoices(availableVoices);
-    };
-
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-
-    return () => {
-      window.speechSynthesis.onvoiceschanged = null;
-    };
-  }, []);
 
   const getAudioContext = () => {
     if (!audioContextRef.current) {
@@ -56,6 +50,8 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
       if (!ctx) return null;
 
       const response = await fetch(url);
+      if (!response.ok) return null;
+
       const arrayBuffer = await response.arrayBuffer();
       return await ctx.decodeAudioData(arrayBuffer.slice(0));
     } catch {
@@ -70,15 +66,28 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
       const ctx = getAudioContext();
       if (!ctx) return;
 
+      const tickPromise = loadSoundBuffer('/tick.mp3');
+      const shutterPromise = loadSoundBuffer('/shutter.mp3');
+
+      const voiceEntries = Object.entries(voiceMap);
+
+      const loadedVoiceEntries = await Promise.all(
+        voiceEntries.map(async ([hint, url]) => {
+          const buffer = await loadSoundBuffer(url);
+          return [hint, buffer] as const;
+        })
+      );
+
       const [tickBuffer, shutterBuffer] = await Promise.all([
-        loadSoundBuffer('/tick.mp3'),
-        loadSoundBuffer('/shutter.mp3'),
+        tickPromise,
+        shutterPromise,
       ]);
 
       if (!mounted) return;
 
       tickBufferRef.current = tickBuffer;
       shutterBufferRef.current = shutterBuffer;
+      voiceBuffersRef.current = Object.fromEntries(loadedVoiceEntries);
     };
 
     prepareBuffers();
@@ -87,49 +96,6 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
       mounted = false;
     };
   }, []);
-
-  const getSelectedVoice = () => {
-    if (!voices.length) return null;
-
-    if (preferredVoiceName) {
-      const preferred = voices.find((v) =>
-        v.name.toLowerCase().includes(preferredVoiceName.toLowerCase())
-      );
-      if (preferred) return preferred;
-    }
-
-    const preferredOrder = [
-      'samantha',
-      'ava',
-      'victoria',
-      'allison',
-      'karen',
-      'moira',
-      'serena',
-      'susan',
-    ];
-
-    for (const wanted of preferredOrder) {
-      const found = voices.find(
-        (v) =>
-          v.lang.toLowerCase().startsWith('en') &&
-          v.name.toLowerCase().includes(wanted)
-      );
-      if (found) return found;
-    }
-
-    return (
-      voices.find((v) => v.lang.toLowerCase().startsWith('en')) ||
-      voices[0] ||
-      null
-    );
-  };
-
-  const stopSpeech = () => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-  };
 
   const unlockAudio = async () => {
     try {
@@ -141,13 +107,6 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
       }
 
       audioUnlockedRef.current = true;
-
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance('');
-        utterance.volume = 0;
-        window.speechSynthesis.speak(utterance);
-        window.speechSynthesis.cancel();
-      }
     } catch {}
   };
 
@@ -174,24 +133,50 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
     } catch {}
   };
 
-  const speakHint = (text: string | null) => {
-    if (!speechEnabled || !text || !('speechSynthesis' in window)) return;
+  const stopSpeech = () => {
+    try {
+      currentVoiceSourceRef.current?.stop();
+    } catch {}
+
+    currentVoiceSourceRef.current = null;
+  };
+
+  const speakHint = async (text: string | null) => {
+    if (!speechEnabled || !text) return;
     if (!audioUnlockedRef.current) return;
     if (lastSpokenRef.current === text) return;
 
-    stopSpeech();
+    const buffer = voiceBuffersRef.current[text];
+    if (!buffer) return;
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.volume = volume;
-    utterance.rate = rate;
-    utterance.pitch = pitch;
-    utterance.lang = 'en-US';
+    try {
+      const ctx = getAudioContext();
+      if (!ctx) return;
 
-    const voice = getSelectedVoice();
-    if (voice) utterance.voice = voice;
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
 
-    window.speechSynthesis.speak(utterance);
-    lastSpokenRef.current = text;
+      stopSpeech();
+
+      const source = ctx.createBufferSource();
+      const gainNode = ctx.createGain();
+
+      gainNode.gain.value = volume;
+      source.buffer = buffer;
+      source.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      source.onended = () => {
+        if (currentVoiceSourceRef.current === source) {
+          currentVoiceSourceRef.current = null;
+        }
+      };
+
+      currentVoiceSourceRef.current = source;
+      source.start(0);
+      lastSpokenRef.current = text;
+    } catch {}
   };
 
   const resetLastSpoken = () => {
@@ -207,7 +192,6 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
   };
 
   return {
-    voices,
     speakHint,
     stopSpeech,
     resetLastSpoken,

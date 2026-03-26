@@ -47,3 +47,28 @@ export const takeSnapshot = (
 
   return canvas.toDataURL('image/jpeg', 0.95);
 };
+export const resizeForAI = (base64Str: string, maxWidth = 800): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+
+    img.onload = () => {
+      const scale = maxWidth / img.width;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = maxWidth;
+      canvas.height = img.height * scale;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(base64Str);
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      resolve(canvas.toDataURL('image/jpeg', 0.8));
+    };
+
+    img.src = base64Str;
+  });
+};

@@ -6,7 +6,7 @@ import { getGeminiAdvice } from '../actions';
 import TrackingHint from './TrackingHint';
 import { generateLiveHint } from '../utils/smartAdvice';
 import { useAudioGuide } from '../hooks/useAudioGuide';
-import { takeSnapshot } from '../utils/cameraHelpers';
+import { takeSnapshot, resizeForAI } from '../utils/cameraHelpers';
 
 // --- STYLES ---
 const iconBtn = { background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', width: 40, height: 40 };
@@ -56,25 +56,6 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
   pitch: 1.05,
   preferredVoiceName: ''
 });
-
-  const resizeForAI = (base64Str: string, maxWidth = 800): Promise<string> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.src = base64Str;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const scale = maxWidth / img.width;
-        if (scale >= 1) { resolve(base64Str); return; }
-        canvas.width = maxWidth;
-        canvas.height = img.height * scale;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            resolve(canvas.toDataURL('image/jpeg', 0.8));
-        } else { resolve(base64Str); }
-      };
-    });
-  };
 
   const performCapture = useCallback(() => {
     if (!videoRef.current) return;

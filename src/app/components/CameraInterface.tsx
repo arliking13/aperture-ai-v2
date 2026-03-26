@@ -7,6 +7,7 @@ import TrackingHint from './TrackingHint';
 import { generateLiveHint } from '../utils/smartAdvice';
 import { useAudioGuide } from '../hooks/useAudioGuide';
 import { takeSnapshot, resizeForAI } from '../utils/cameraHelpers';
+import { useManualCountdown } from '../hooks/useManualCountdown';
 
 // --- STYLES ---
 const iconBtn = { background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', width: 40, height: 40 };
@@ -57,6 +58,7 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
   preferredVoiceName: ''
 });
 
+const { manualCountdown, startCountdown, cancelCountdown } = useManualCountdown();
   const performCapture = useCallback(() => {
     if (!videoRef.current) return;
     playShutter();
@@ -104,37 +106,35 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
   playTick
 );
 
-  const [manualCountdown, setManualCountdown] = useState<number | null>(null);
+
 
   const handleShutterPress = () => {
-    if (isProcessing) return;
-    if (autoCaptureEnabled) {
-        setAutoSessionActive(!autoSessionActive);
-        return;
-    }
-    if (timerDuration === 0) {
-      performCapture();
-      return;
-    }
-    setManualCountdown(timerDuration);
-playTick();
+  if (isProcessing) return;
 
-let count = timerDuration;
-const interval = setInterval(() => {
-  count--;
-
-  if (count <= 0) {
-    clearInterval(interval);
-    setManualCountdown(null);
-    performCapture();
-  } else {
-    setManualCountdown(count);
-    playTick();
+  if (autoCaptureEnabled) {
+    setAutoSessionActive(!autoSessionActive);
+    return;
   }
-}, 1000);
-  };
+
+  if (timerDuration === 0) {
+    performCapture();
+    return;
+  }
+
+  startCountdown(timerDuration, playTick, performCapture);
+};
 
   useEffect(() => { setAutoSessionActive(false); }, [autoCaptureEnabled]);
+  useEffect(() => { 
+  setAutoSessionActive(false); 
+}, [autoCaptureEnabled]);
+
+useEffect(() => {
+  if (autoCaptureEnabled) {
+    cancelCountdown();
+  }
+}, [autoCaptureEnabled, cancelCountdown]);
+
   const activeCountdown = manualCountdown !== null ? manualCountdown : aiCountdown;
 
   const handleZoomChange = (newZoom: number) => {

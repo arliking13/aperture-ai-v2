@@ -25,6 +25,22 @@ export function usePoseTracker(
   const timerDurationRef = useRef(timerDuration);
   const captureRef = useRef(onCaptureTrigger);
 
+  const getAdaptiveMovementThreshold = (landmarks: any[] | null) => {
+  if (!landmarks) return MOVEMENT_THRESHOLD;
+
+  const leftShoulder = landmarks[11];
+  const rightShoulder = landmarks[12];
+
+  if (!leftShoulder || !rightShoulder) return MOVEMENT_THRESHOLD;
+
+  const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
+
+  // Чем ближе человек, тем больше допускаем микродвижение
+  if (shoulderWidth > 0.45) return 0.010;
+  if (shoulderWidth > 0.30) return 0.008;
+  return 0.005;
+};
+
   useEffect(() => {
     captureRef.current = onCaptureTrigger;
   }, [onCaptureTrigger]);
@@ -126,18 +142,30 @@ export function usePoseTracker(
         setLastLandmarks(landmarks);
 
         const movement = calculateMovement(landmarks, previousLandmarks.current);
+const adaptiveThreshold = getAdaptiveMovementThreshold(landmarks);
 
-        if (movement < MOVEMENT_THRESHOLD) {
-          stillFrames.current = Math.min(FRAMES_TO_LOCK, stillFrames.current + 1);
-        } else {
-          stillFrames.current = Math.max(0, stillFrames.current - 5);
+const leftShoulder = landmarks[11];
+const rightShoulder = landmarks[12];
+const shoulderWidth =
+  leftShoulder && rightShoulder
+    ? Math.abs(leftShoulder.x - rightShoulder.x)
+    : 0;
 
-          if (countdownTimer.current) {
-            clearInterval(countdownTimer.current);
-            countdownTimer.current = null;
-            setCountdown(null);
-          }
-        }
+// Вблизи делаем систему терпимее не только по threshold,
+// но и по тому, насколько быстро рушится накопленная стабильность
+const decay = shoulderWidth > 0.35 ? 2 : 5;
+
+if (movement < adaptiveThreshold) {
+  stillFrames.current = Math.min(FRAMES_TO_LOCK, stillFrames.current + 1);
+} else {
+  stillFrames.current = Math.max(0, stillFrames.current - decay);
+
+  if (countdownTimer.current) {
+    clearInterval(countdownTimer.current);
+    countdownTimer.current = null;
+    setCountdown(null);
+  }
+}
 
         const percent = Math.round((stillFrames.current / FRAMES_TO_LOCK) * 100);
         setStability(percent);

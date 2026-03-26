@@ -2,11 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { PoseLandmarker, FilesetResolver, DrawingUtils } from '@mediapipe/tasks-vision';
 import { calculateMovement } from '../utils/motionLogic';
 
-// --- CONFIGURATION ---
-const MOVEMENT_THRESHOLD = 0.005; 
-const FRAMES_TO_LOCK = 60; // ~2 Seconds
-
-
+const MOVEMENT_THRESHOLD = 0.005;
+const FRAMES_TO_LOCK = 60;
 
 export function usePoseTracker(
   videoRef: React.RefObject<HTMLVideoElement | null>,
@@ -16,9 +13,9 @@ export function usePoseTracker(
   playTick?: () => void
 ) {
   const [landmarker, setLandmarker] = useState<PoseLandmarker | null>(null);
-  const [isAiReady, setIsAiReady] = useState(false);  
+  const [isAiReady, setIsAiReady] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
-  const [stability, setStability] = useState(0); 
+  const [stability, setStability] = useState(0);
   const [lastLandmarks, setLastLandmarks] = useState<any[] | null>(null);
 
   const requestRef = useRef<number | null>(null);
@@ -26,54 +23,99 @@ export function usePoseTracker(
   const stillFrames = useRef(0);
   const countdownTimer = useRef<NodeJS.Timeout | null>(null);
   const timerDurationRef = useRef(timerDuration);
+  const captureRef = useRef(onCaptureTrigger);
+
+  useEffect(() => {
+    captureRef.current = onCaptureTrigger;
+  }, [onCaptureTrigger]);
 
   useEffect(() => {
     async function loadAI() {
       try {
         const vision = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
         );
+
         const marker = await PoseLandmarker.createFromOptions(vision, {
           baseOptions: {
-            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
-            delegate: "GPU"
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task',
+            delegate: 'GPU',
           },
-          runningMode: "VIDEO",
-          numPoses: 1
+          runningMode: 'VIDEO',
+          numPoses: 1,
         });
+
         setLandmarker(marker);
         setIsAiReady(true);
       } catch (err) {
-        console.error("AI Load Error:", err);
+        console.error('AI Load Error:', err);
       }
     }
+
     loadAI();
   }, []);
+
   useEffect(() => {
-  timerDurationRef.current = timerDuration;
+    timerDurationRef.current = timerDuration;
 
-  if (countdownTimer.current) {
-    clearInterval(countdownTimer.current);
-    countdownTimer.current = null;
-    setCountdown(null);
-  }
+    if (countdownTimer.current) {
+      clearInterval(countdownTimer.current);
+      countdownTimer.current = null;
+      setCountdown(null);
+    }
 
-  stillFrames.current = 0;
-  setStability(0);
-}, [timerDuration]);
+    stillFrames.current = 0;
+    setStability(0);
+  }, [timerDuration]);
+
+  const startCountdown = () => {
+    if (timerDurationRef.current <= 0) {
+      captureRef.current?.();
+      return;
+    }
+
+    let count = timerDurationRef.current;
+    setCountdown(count);
+
+    if (count > 0 && playTick) {
+      playTick();
+    }
+
+    if (countdownTimer.current) {
+      clearInterval(countdownTimer.current);
+    }
+
+    countdownTimer.current = setInterval(() => {
+      count--;
+
+      if (count <= 0) {
+        clearInterval(countdownTimer.current!);
+        countdownTimer.current = null;
+        setCountdown(null);
+        stillFrames.current = 0;
+        captureRef.current?.();
+      } else {
+        setCountdown(count);
+        if (playTick) {
+          playTick();
+        }
+      }
+    }, 1000);
+  };
 
   const detectPose = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
     if (!landmarker || !video || !canvas || video.readyState < 2) {
-  requestRef.current = requestAnimationFrame(detectPose);
-  return;
-}
+      requestRef.current = requestAnimationFrame(detectPose);
+      return;
+    }
 
     const results = landmarker.detectForVideo(video, performance.now());
     const ctx = canvas.getContext('2d');
-    
+
     if (ctx) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -82,64 +124,60 @@ export function usePoseTracker(
       if (results.landmarks && results.landmarks.length > 0) {
         const landmarks = results.landmarks[0];
         setLastLandmarks(landmarks);
-        
+
         const movement = calculateMovement(landmarks, previousLandmarks.current);
+
         if (movement < MOVEMENT_THRESHOLD) {
-            stillFrames.current = Math.min(FRAMES_TO_LOCK, stillFrames.current + 1);
+          stillFrames.current = Math.min(FRAMES_TO_LOCK, stillFrames.current + 1);
         } else {
-            stillFrames.current = Math.max(0, stillFrames.current - 5);
-            if (countdownTimer.current) {
-              clearInterval(countdownTimer.current);
-              countdownTimer.current = null;
-              setCountdown(null);
-            }
+          stillFrames.current = Math.max(0, stillFrames.current - 5);
+
+          if (countdownTimer.current) {
+            clearInterval(countdownTimer.current);
+            countdownTimer.current = null;
+            setCountdown(null);
+          }
         }
 
         const percent = Math.round((stillFrames.current / FRAMES_TO_LOCK) * 100);
         setStability(percent);
 
         if (stillFrames.current >= FRAMES_TO_LOCK && !countdownTimer.current) {
-           startCountdown();
+          startCountdown();
         }
 
-        const color = percent > 50 ? '#00ff88' : 'rgba(255, 255, 255, 0.4)';
+        const color = percent > 50 ? '#00ff88' : 'rgba(255,255,255,0.4)';
         const drawingUtils = new DrawingUtils(ctx);
-        drawingUtils.drawLandmarks(landmarks, { radius: 3, color: color, fillColor: color });
-        drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS, { color: color, lineWidth: 2 });
+
+        drawingUtils.drawLandmarks(landmarks, {
+          radius: 3,
+          color,
+          fillColor: color,
+        });
+
+        drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS, {
+          color,
+          lineWidth: 2,
+        });
 
         previousLandmarks.current = landmarks;
+      } else {
+        setLastLandmarks(null);
+        setStability(0);
+        stillFrames.current = 0;
+        previousLandmarks.current = null;
+
+        if (countdownTimer.current) {
+          clearInterval(countdownTimer.current);
+          countdownTimer.current = null;
+          setCountdown(null);
+        }
       }
     }
+
     requestRef.current = requestAnimationFrame(detectPose);
   };
 
-  const startCountdown = () => {
-  let count = timerDurationRef.current;
-  setCountdown(count);
-
-  if (count > 0 && playTick) {
-    playTick();
-  }
-
-  if (countdownTimer.current) clearInterval(countdownTimer.current);
-
-  countdownTimer.current = setInterval(() => {
-    count--;
-
-    if (count <= 0) {
-      clearInterval(countdownTimer.current!);
-      countdownTimer.current = null;
-      setCountdown(null);
-      stillFrames.current = 0; 
-      onCaptureTrigger();
-    } else {
-      setCountdown(count);
-      if (playTick) {
-        playTick();
-      }
-    }
-  }, 1000);
-};
   const startTracking = () => {
     if (!requestRef.current) detectPose();
   };
@@ -149,7 +187,7 @@ export function usePoseTracker(
       cancelAnimationFrame(requestRef.current);
       requestRef.current = null;
     }
-    
+
     if (countdownTimer.current) {
       clearInterval(countdownTimer.current);
       countdownTimer.current = null;
@@ -157,7 +195,9 @@ export function usePoseTracker(
 
     setStability(0);
     setCountdown(null);
+    setLastLandmarks(null);
     stillFrames.current = 0;
+    previousLandmarks.current = null;
 
     if (canvasRef.current) {
       const ctx = canvasRef.current.getContext('2d');
@@ -167,15 +207,17 @@ export function usePoseTracker(
     }
   };
 
-  useEffect(() => { return () => stopTracking(); }, []);
+  useEffect(() => {
+    return () => stopTracking();
+  }, []);
 
-return {
-  isAiReady,
-  startTracking,
-  stopTracking,
-  countdown,
-  stability,
-  isStill: stability > 20,
-  lastLandmarks
-};
+  return {
+    isAiReady,
+    startTracking,
+    stopTracking,
+    countdown,
+    stability,
+    isStill: stability > 20,
+    lastLandmarks,
+  };
 }

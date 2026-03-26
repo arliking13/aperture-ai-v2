@@ -149,6 +149,12 @@ useEffect(() => {
     cancelCountdown();
   }
 }, [autoCaptureEnabled, cancelCountdown]);
+useEffect(() => {
+  if (!autoCaptureEnabled) {
+    stopSpeech();
+    resetLastSpoken();
+  }
+}, [autoCaptureEnabled, stopSpeech, resetLastSpoken]);
 
   const activeCountdown = manualCountdown !== null ? manualCountdown : aiCountdown;
 
@@ -365,12 +371,13 @@ useEffect(() => {
             </div>
           )}
         </button>
-
-        <button onClick={() => setVoiceAssistEnabled(v => !v)} style={iconBtn}>
-          <span style={{ fontSize: 10, fontWeight: 'bold' }}>
-            {voiceAssistEnabled ? 'VOICE' : 'MUTE'}
-          </span>
-        </button>
+{autoCaptureEnabled && (
+  <button onClick={() => setVoiceAssistEnabled(v => !v)} style={iconBtn}>
+    <span style={{ fontSize: 10, fontWeight: 'bold' }}>
+      {voiceAssistEnabled ? 'VOICE' : 'MUTE'}
+    </span>
+  </button>
+)}
       </div>
     </div>
 

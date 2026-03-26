@@ -27,50 +27,55 @@ export function useCameraSession() {
   );
 
   const startCamera = useCallback(
-    async ({
-      videoRef,
-      facingMode,
-      unlockAudio,
-      setCameraStarted,
-      setZoomCap,
-      setZoom,
-    }: StartCameraParams) => {
-      await unlockAudio();
+  async ({
+    videoRef,
+    facingMode,
+    unlockAudio,
+    setCameraStarted,
+    setZoomCap,
+    setZoom,
+  }: StartCameraParams) => {
+    await unlockAudio();
 
-      stopCurrentStream(videoRef);
+    stopCurrentStream(videoRef);
 
-      const constraints = {
-        video: {
-          facingMode,
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          zoom: true,
-        } as any,
-      };
+    const constraints = {
+      video: {
+        facingMode,
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        zoom: true,
+      } as any,
+    };
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
-      if (!videoRef.current) return;
+    if (!videoRef.current) return;
 
-      videoRef.current.srcObject = stream;
-      videoRef.current.onloadeddata = () => {
-        videoRef.current?.play();
-        setCameraStarted(true);
+    const video = videoRef.current;
+    video.srcObject = stream;
 
-        const track = stream.getVideoTracks()[0];
-        const caps = (track.getCapabilities() as any) || {};
+    await new Promise<void>((resolve) => {
+      video.onloadedmetadata = () => resolve();
+    });
 
-        if (caps.zoom) {
-          setZoomCap({ min: caps.zoom.min, max: caps.zoom.max });
-          setZoom(1);
-        } else {
-          setZoomCap({ min: 1, max: 1 });
-          setZoom(1);
-        }
-      };
-    },
-    [stopCurrentStream]
-  );
+    await video.play();
+
+    setCameraStarted(true);
+
+    const track = stream.getVideoTracks()[0];
+    const caps = (track.getCapabilities() as any) || {};
+
+    if (caps.zoom) {
+      setZoomCap({ min: caps.zoom.min, max: caps.zoom.max });
+      setZoom(1);
+    } else {
+      setZoomCap({ min: 1, max: 1 });
+      setZoom(1);
+    }
+  },
+  [stopCurrentStream]
+);
 
   return {
     startCamera,

@@ -224,6 +224,7 @@ useEffect(() => {
 
   const startCamera = useCallback(async (overrideMode?: 'user' | 'environment') => {
   try {
+    console.log('Open Camera clicked');
     resetLastSpoken();
 
     await startCameraSession({
@@ -234,7 +235,10 @@ useEffect(() => {
       setZoomCap,
       setZoom,
     });
+
+    console.log('Camera started successfully');
   } catch (e) {
+    console.log('Camera Error:', e);
     alert('Camera Error: ' + e);
   }
 }, [startCameraSession, facingMode, unlockAudio, resetLastSpoken]);

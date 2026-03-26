@@ -106,7 +106,7 @@ const performCapture = useCallback(() => {
   videoRef, 
   canvasRef, 
   performCapture, 
-  autoCaptureEnabled ? timerDuration || 3 : 0,
+  autoCaptureEnabled ? timerDuration : 0,
   playTick
 );
 
@@ -155,10 +155,17 @@ const handleVoiceToggle = async () => {
   startCountdown(timerDuration, playTick, performCapture);
 };
 
+const prevHintRef = useRef<string | null>(null);
 
 useEffect(() => { 
   setAutoSessionActive(false); 
 }, [autoCaptureEnabled]);
+
+useEffect(() => {
+  if (autoCaptureEnabled && timerDuration === 0) {
+    setTimerDuration(3);
+  }
+}, [autoCaptureEnabled, timerDuration]);
 
 
 useEffect(() => {
@@ -167,13 +174,32 @@ useEffect(() => {
   }
 }, [autoCaptureEnabled, cancelCountdown]);
 useEffect(() => {
-  if (!autoCaptureEnabled) {
-    stopSpeech();
+  if (autoSessionActive) {
     resetLastSpoken();
   }
-}, [autoCaptureEnabled, stopSpeech, resetLastSpoken]);
+}, [autoSessionActive, resetLastSpoken]);
 
   const activeCountdown = manualCountdown !== null ? manualCountdown : aiCountdown;
+  useEffect(() => {
+  if (!autoCaptureEnabled || !autoSessionActive) return;
+  if (!lastLandmarks) return;
+
+  const newHint = generateLiveHint(
+    lastLandmarks,
+    null, // brightness пока можно игнорить
+    stability
+  );
+
+    if (newHint === "Perfect" && prevHintRef.current === "Perfect") return;
+
+  setHint(prev => (prev === newHint ? prev : newHint));
+
+}, [
+  lastLandmarks,
+  stability,
+  autoCaptureEnabled,
+  autoSessionActive
+]);
 
   const handleZoomChange = (newZoom: number) => {
     const z = Math.min(Math.max(newZoom, zoomCap.min), zoomCap.max);
@@ -187,51 +213,27 @@ useEffect(() => {
     }, 100);
   };
 
- useEffect(() => {
-  const hintEnabled =
-    cameraStarted &&
+
+useEffect(() => {
+  const voiceEnabled =
+    voiceAssistEnabled &&
     autoCaptureEnabled &&
     autoSessionActive &&
     activeCountdown === null;
 
-  if (!hintEnabled) {
-    setHint(null);
-    return;
-  }
+if (!voiceEnabled) {
+  stopSpeech();
+  return;
+}
 
-  const newHint = generateLiveHint(
-    lastLandmarks,
-    null,
-    stability
-  );
+  if (!hint) return;
 
-  setHint(newHint);
-}, [
-  cameraStarted,
-  autoCaptureEnabled,
-  autoSessionActive,
-  activeCountdown,
-  stability,
-  lastLandmarks
-]);
+  if (prevHintRef.current === hint) return;
 
-useEffect(() => {
-  const voiceEnabled =
-  voiceAssistEnabled &&
-  autoCaptureEnabled &&
-  autoSessionActive &&
-  activeCountdown === null;
+  prevHintRef.current = hint;
 
-  if (!voiceEnabled || !hint) {
-    stopSpeech();
-    return;
-  }
+  speakHint(hint);
 
-  const id = window.setTimeout(() => {
-    speakHint(hint);
-  }, 250);
-
-  return () => window.clearTimeout(id);
 }, [
   hint,
   voiceAssistEnabled,
@@ -241,7 +243,6 @@ useEffect(() => {
   speakHint,
   stopSpeech
 ]);
-
   const startCamera = useCallback(async (overrideMode?: 'user' | 'environment') => {
   try {
     console.log('Open Camera clicked');
@@ -272,7 +273,8 @@ useEffect(() => {
       }
   }, [cameraStarted, autoCaptureEnabled, autoSessionActive, startTracking, stopTracking]);
 
-  const toggleTimer = () => setTimerDuration(p => p === 0 ? 3 : p === 3 ? 5 : p === 5 ? 10 : 0);
+  const toggleTimer = () => 
+  setTimerDuration(p => p === 3 ? 5 : p === 5 ? 10 : 3);
   const switchCamera = async () => {
     const newMode = facingMode === 'user' ? 'environment' : 'user';
     setFacingMode(newMode);

@@ -156,6 +156,7 @@ const handleVoiceToggle = async () => {
 };
 
 const prevHintRef = useRef<string | null>(null);
+const lastSpokenTimeRef = useRef(0);
 
 useEffect(() => { 
   setAutoSessionActive(false); 
@@ -190,8 +191,9 @@ useEffect(() => {
     stability
   );
 
-    if (newHint === "Perfect" && prevHintRef.current === "Perfect") return;
-
+   if (newHint === "Perfect") {
+  if (prevHintRef.current === "Perfect") return;
+}
   setHint(prev => (prev === newHint ? prev : newHint));
 
 }, [
@@ -223,16 +225,21 @@ useEffect(() => {
 
 if (!voiceEnabled) {
   stopSpeech();
+  prevHintRef.current = null;
   return;
 }
 
   if (!hint) return;
 
-  if (prevHintRef.current === hint) return;
+ const now = Date.now();
 
-  prevHintRef.current = hint;
+if (prevHintRef.current === hint) return;
+if (now - lastSpokenTimeRef.current < 1200) return;
 
-  speakHint(hint);
+prevHintRef.current = hint;
+lastSpokenTimeRef.current = now;
+
+speakHint(hint);
 
 }, [
   hint,

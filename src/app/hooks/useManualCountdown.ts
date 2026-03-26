@@ -18,9 +18,13 @@ export function useManualCountdown() {
       onTick?: () => void,
       onDone?: () => void
     ) => {
-      cancelCountdown();
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
 
       if (duration <= 0) {
+        setManualCountdown(null);
         onDone?.();
         return;
       }
@@ -45,13 +49,14 @@ export function useManualCountdown() {
         }
       }, 1000);
     },
-    [cancelCountdown]
+    []
   );
 
   useEffect(() => {
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
   }, []);

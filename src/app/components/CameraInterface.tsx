@@ -112,6 +112,7 @@ const performCapture = useCallback(() => {
 
 
   const handleShutterPress = () => {
+    console.log('manualCountdown:', manualCountdown, 'autoCaptureEnabled:', autoCaptureEnabled);
   if (isProcessing) return;
 
   if (autoCaptureEnabled) {

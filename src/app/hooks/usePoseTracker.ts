@@ -1,23 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { PoseLandmarker, FilesetResolver, DrawingUtils } from '@mediapipe/tasks-vision';
+import { calculateMovement } from '../utils/motionLogic';
 
 // --- CONFIGURATION ---
 const MOVEMENT_THRESHOLD = 0.005; 
 const FRAMES_TO_LOCK = 60; // ~2 Seconds
 
-const calculateMovement = (current: any[], previous: any[] | null): number => {
-  if (!previous) return 999;
-  const keyPoints = [0, 11, 12, 23, 24]; 
-  let total = 0;
-  keyPoints.forEach(i => {
-    if (current[i] && previous[i]) {
-      const dx = current[i].x - previous[i].x;
-      const dy = current[i].y - previous[i].y;
-      total += Math.sqrt(dx * dx + dy * dy);
-    }
-  });
-  return total / keyPoints.length;
-};
+
 
 export function usePoseTracker(
   videoRef: React.RefObject<HTMLVideoElement | null>,
@@ -27,7 +16,7 @@ export function usePoseTracker(
   playTick?: () => void
 ) {
   const [landmarker, setLandmarker] = useState<PoseLandmarker | null>(null);
-  const [isAiReady, setIsAiReady] = useState(false);
+  const [isAiReady, setIsAiReady] = useState(false);  
   const [countdown, setCountdown] = useState<number | null>(null);
   const [stability, setStability] = useState(0); 
   const [lastLandmarks, setLastLandmarks] = useState<any[] | null>(null);

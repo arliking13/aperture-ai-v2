@@ -6,47 +6,13 @@ import { getGeminiAdvice } from '../actions';
 import TrackingHint from './TrackingHint';
 import { generateLiveHint } from '../utils/smartAdvice';
 import { useAudioGuide } from '../hooks/useAudioGuide';
+import { takeSnapshot } from '../utils/cameraHelpers';
 
 // --- STYLES ---
 const iconBtn = { background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', width: 40, height: 40 };
 const capsuleBtn = { display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 'bold', cursor: 'pointer', backdropFilter: 'blur(10px)' };
 const startBtn = { background: '#fff', color: '#000', border: 'none', padding: '15px 40px', borderRadius: 30, fontSize: 18, fontWeight: 'bold', cursor: 'pointer' };
 
-const takeSnapshot = (video: HTMLVideoElement, format: string, isMirrored: boolean) => {
-    const canvas = document.createElement('canvas');
-    const vidW = video.videoWidth;
-    const vidH = video.videoHeight;
-    let targetW = vidW, targetH = vidH;
-
-    if (format === 'square') {
-      const size = Math.min(vidW, vidH);
-      targetW = size; targetH = size;
-    } else if (format === 'vertical') {
-       targetH = vidH; targetW = targetH * (9/16);
-       if (targetW > vidW) { targetW = vidW; targetH = targetW * (16/9); }
-    } else {
-       targetH = vidH; targetW = targetH * (4/3);
-       if (targetW > vidW) { targetW = vidW; targetH = targetW * (3/4); }
-    }
-
-    canvas.width = targetW;
-    canvas.height = targetH;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-
-    const startX = (vidW - targetW) / 2;
-    const startY = (vidH - targetH) / 2;
-
-    ctx.save();
-    if (isMirrored) {
-      ctx.translate(targetW, 0);
-      ctx.scale(-1, 1);
-    }
-    ctx.drawImage(video, startX, startY, targetW, targetH, 0, 0, targetW, targetH);
-    ctx.restore();
-
-    return canvas.toDataURL('image/jpeg', 0.95);
-};
 
 interface CameraInterfaceProps {
   onCapture: (base64Image: string) => void;

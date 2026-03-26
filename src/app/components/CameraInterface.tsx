@@ -119,6 +119,12 @@ const performCapture = useCallback(() => {
     return;
   }
 
+  // Если manual countdown уже идет — повторное нажатие отменяет его
+  if (manualCountdown !== null) {
+    cancelCountdown();
+    return;
+  }
+
   if (timerDuration === 0) {
     performCapture();
     return;
@@ -440,7 +446,12 @@ useEffect(() => {
             width: 72,
             height: 72,
             borderRadius: '50%',
-            background: isProcessing ? '#333' : autoCaptureEnabled && autoSessionActive ? '#ff3b30' : '#fff',
+            background:
+  isProcessing
+    ? '#333'
+    : (autoCaptureEnabled && autoSessionActive) || manualCountdown !== null
+      ? '#ff3b30'
+      : '#fff',
             border: '4px solid rgba(0,0,0,0.1)',
             outline: '4px solid #fff',
             outlineOffset: 2,
@@ -450,7 +461,9 @@ useEffect(() => {
             justifyContent: 'center'
           }}
         >
-          {autoCaptureEnabled && autoSessionActive ? <Square fill="#fff" size={24} /> : null}
+          {(autoCaptureEnabled && autoSessionActive) || manualCountdown !== null ? (
+  <Square fill="#fff" size={24} />
+) : null}
         </button>
 
         <button onClick={switchCamera} style={iconBtn}>

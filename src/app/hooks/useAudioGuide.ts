@@ -4,9 +4,6 @@ type AudioGuideOptions = {
   speechEnabled?: boolean;
   soundEnabled?: boolean;
   volume?: number;
-  rate?: number;
-  pitch?: number;
-  preferredVoiceName?: string;
 };
 
 const voiceMap: Record<string, string> = {
@@ -50,11 +47,15 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
       if (!ctx) return null;
 
       const response = await fetch(url);
-      if (!response.ok) return null;
+      if (!response.ok) {
+        console.log('Failed to load audio:', url, response.status);
+        return null;
+      }
 
       const arrayBuffer = await response.arrayBuffer();
       return await ctx.decodeAudioData(arrayBuffer.slice(0));
-    } catch {
+    } catch (e) {
+      console.log('Audio decode/load error for:', url, e);
       return null;
     }
   };
@@ -88,6 +89,14 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
       tickBufferRef.current = tickBuffer;
       shutterBufferRef.current = shutterBuffer;
       voiceBuffersRef.current = Object.fromEntries(loadedVoiceEntries);
+
+      console.log('Audio buffers ready:', {
+        tick: !!tickBuffer,
+        shutter: !!shutterBuffer,
+        voices: Object.fromEntries(
+          Object.entries(voiceBuffersRef.current).map(([key, value]) => [key, !!value])
+        ),
+      });
     };
 
     prepareBuffers();
@@ -106,8 +115,18 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
         await ctx.resume();
       }
 
+      // tiny silent buffer to warm up some browsers
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+
       audioUnlockedRef.current = true;
-    } catch {}
+      console.log('Audio unlocked');
+    } catch (e) {
+      console.log('Audio unlock failed:', e);
+    }
   };
 
   const playBuffer = async (buffer: AudioBuffer | null) => {
@@ -130,7 +149,9 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
       source.connect(gainNode);
       gainNode.connect(ctx.destination);
       source.start(0);
-    } catch {}
+    } catch (e) {
+      console.log('playBuffer error:', e);
+    }
   };
 
   const stopSpeech = () => {
@@ -142,11 +163,21 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
   };
 
   const speakHint = async (text: string | null) => {
+    console.log('speakHint text:', text);
+
     if (!speechEnabled || !text) return;
-    if (!audioUnlockedRef.current) return;
-    if (lastSpokenRef.current === text) return;
+    if (!audioUnlockedRef.current) {
+      console.log('Audio not unlocked yet');
+      return;
+    }
+    if (lastSpokenRef.current === text) {
+      console.log('Skipping repeated hint:', text);
+      return;
+    }
 
     const buffer = voiceBuffersRef.current[text];
+    console.log('Voice buffer found:', !!buffer, 'for text:', text);
+
     if (!buffer) return;
 
     try {
@@ -176,7 +207,9 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
       currentVoiceSourceRef.current = source;
       source.start(0);
       lastSpokenRef.current = text;
-    } catch {}
+    } catch (e) {
+      console.log('speakHint playback error:', e);
+    }
   };
 
   const resetLastSpoken = () => {

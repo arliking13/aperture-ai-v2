@@ -225,6 +225,8 @@ useEffect(() => {
 
   const startCamera = useCallback(async (overrideMode?: 'user' | 'environment') => {
   try {
+    resetLastSpoken();
+
     await startCameraSession({
       videoRef,
       facingMode: overrideMode || facingMode,
@@ -236,7 +238,7 @@ useEffect(() => {
   } catch (e) {
     alert('Camera Error: ' + e);
   }
-}, [startCameraSession, facingMode, unlockAudio]);
+}, [startCameraSession, facingMode, unlockAudio, resetLastSpoken]);
 
   // --- LOGIC: Only run AI if Auto Mode is ON. Otherwise, kill it. ---
   useEffect(() => { 

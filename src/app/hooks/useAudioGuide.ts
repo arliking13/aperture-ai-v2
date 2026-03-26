@@ -24,6 +24,8 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
   } = options;
 
   const lastSpokenRef = useRef<string | null>(null);
+  const lastSpokenAtRef = useRef<number>(0);
+const HINT_COOLDOWN_MS = 2500;
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const tickBufferRef = useRef<AudioBuffer | null>(null);
@@ -170,10 +172,15 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
       console.log('Audio not unlocked yet');
       return;
     }
-    if (lastSpokenRef.current === text) {
-      console.log('Skipping repeated hint:', text);
-      return;
-    }
+    const now = Date.now();
+
+if (
+  lastSpokenRef.current === text &&
+  now - lastSpokenAtRef.current < HINT_COOLDOWN_MS
+) {
+  console.log('Skipping repeated hint:', text);
+  return;
+}
 
     const buffer = voiceBuffersRef.current[text];
     console.log('Voice buffer found:', !!buffer, 'for text:', text);
@@ -205,16 +212,18 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
       };
 
       currentVoiceSourceRef.current = source;
-      source.start(0);
-      lastSpokenRef.current = text;
+source.start(0);
+lastSpokenRef.current = text;
+lastSpokenAtRef.current = Date.now();
     } catch (e) {
       console.log('speakHint playback error:', e);
     }
   };
 
   const resetLastSpoken = () => {
-    lastSpokenRef.current = null;
-  };
+  lastSpokenRef.current = null;
+  lastSpokenAtRef.current = 0;
+};
 
   const playTick = async () => {
     await playBuffer(tickBufferRef.current);

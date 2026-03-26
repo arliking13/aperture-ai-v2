@@ -42,8 +42,7 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
   const [advice, setAdvice] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [isLoadingAdvice, setIsLoadingAdvice] = useState(false);
-  const [voiceAssistEnabled, setVoiceAssistEnabled] = useState(true);
-  const [voicePermissionGranted, setVoicePermissionGranted] = useState(false);
+const [voiceAssistEnabled, setVoiceAssistEnabled] = useState(false);
 
   const {
   speakHint,
@@ -114,13 +113,23 @@ const performCapture = useCallback(() => {
 const handleVoiceToggle = async () => {
   await unlockAudio();
 
-  if (!voicePermissionGranted) {
-    setVoicePermissionGranted(true);
-    setVoiceAssistEnabled(true);
+  if (voiceAssistEnabled) {
+    setVoiceAssistEnabled(false);
+    stopSpeech();
     return;
   }
 
-  setVoiceAssistEnabled((v) => !v);
+  setVoiceAssistEnabled(true);
+  resetLastSpoken();
+
+  if (
+    autoCaptureEnabled &&
+    autoSessionActive &&
+    activeCountdown === null &&
+    hint
+  ) {
+    speakHint(hint);
+  }
 };
 
   const handleShutterPress = () => {
@@ -208,7 +217,6 @@ useEffect(() => {
 
 useEffect(() => {
   const voiceEnabled =
-  voicePermissionGranted &&
   voiceAssistEnabled &&
   autoCaptureEnabled &&
   autoSessionActive &&
@@ -387,11 +395,7 @@ useEffect(() => {
 {autoCaptureEnabled && (
   <button onClick={handleVoiceToggle} style={iconBtn}>
     <span style={{ fontSize: 10, fontWeight: 'bold' }}>
-      {!voicePermissionGranted
-        ? 'ENABLE VOICE'
-        : voiceAssistEnabled
-          ? 'VOICE'
-          : 'MUTE'}
+      {voiceAssistEnabled ? 'VOICE' : 'MUTE'}
     </span>
   </button>
 )}

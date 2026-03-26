@@ -26,6 +26,7 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
   const lastSpokenRef = useRef<string | null>(null);
   const lastSpokenAtRef = useRef<number>(0);
   const currentVoiceAudioRef = useRef<HTMLAudioElement | null>(null);
+  const voiceAudioMapRef = useRef<Record<string, HTMLAudioElement>>({});
 
   const HINT_COOLDOWN_MS = 2500;
 
@@ -82,9 +83,20 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
       tickBufferRef.current = tickBuffer;
       shutterBufferRef.current = shutterBuffer;
 
-      console.log('Audio buffers ready:', {
+      const preparedVoices: Record<string, HTMLAudioElement> = {};
+      for (const [hint, url] of Object.entries(voiceMap)) {
+        const audio = new Audio(url);
+        audio.preload = 'auto';
+        audio.volume = volume;
+        preparedVoices[hint] = audio;
+      }
+
+      voiceAudioMapRef.current = preparedVoices;
+
+      console.log('Audio ready:', {
         tick: !!tickBuffer,
         shutter: !!shutterBuffer,
+        voices: Object.keys(preparedVoices),
       });
     };
 
@@ -93,30 +105,35 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [volume]);
 
   const unlockAudio = async () => {
     try {
       const ctx = getAudioContext();
-      if (!ctx) return;
-
-      if (ctx.state === 'suspended') {
+      if (ctx && ctx.state === 'suspended') {
         await ctx.resume();
       }
 
-      // Warm up Web Audio for tick / shutter
-      const buffer = ctx.createBuffer(1, 1, 22050);
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(ctx.destination);
-      source.start(0);
+      // warm up web audio for tick/shutter
+      if (ctx) {
+        const buffer = ctx.createBuffer(1, 1, 22050);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(0);
+      }
 
-      // Warm up HTMLAudio for voice
-      const silentAudio = new Audio();
-      silentAudio.volume = 0;
-      try {
-        await silentAudio.play();
-      } catch {}
+      // warm up HTMLAudio for voices
+      for (const audio of Object.values(voiceAudioMapRef.current)) {
+        try {
+          audio.muted = true;
+          await audio.play();
+          audio.pause();
+          audio.currentTime = 0;
+          audio.muted = false;
+          audio.volume = volume;
+        } catch {}
+      }
 
       audioUnlockedRef.current = true;
       console.log('Audio unlocked');
@@ -140,7 +157,6 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
       const gainNode = ctx.createGain();
 
       gainNode.gain.value = volume;
-
       source.buffer = buffer;
       source.connect(gainNode);
       gainNode.connect(ctx.destination);
@@ -161,7 +177,7 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
     currentVoiceAudioRef.current = null;
   };
 
-  const speakHint = (text: string | null) => {
+  const speakHint = async (text: string | null) => {
     console.log('speakHint text:', text);
 
     if (!speechEnabled || !text) return;
@@ -180,28 +196,27 @@ export function useAudioGuide(options: AudioGuideOptions = {}) {
       return;
     }
 
-    const url = voiceMap[text];
-    console.log('voice url:', url);
+    const baseAudio = voiceAudioMapRef.current[text];
+    console.log('voice audio found:', !!baseAudio, 'for text:', text);
 
-    if (!url) return;
+    if (!baseAudio) return;
 
     try {
       stopSpeech();
 
-      const audio = new Audio(url);
+      const audio = baseAudio.cloneNode(true) as HTMLAudioElement;
       audio.volume = volume;
-
-      audio.play().catch((e) => {
-        console.log('Audio play blocked:', e);
-      });
+      audio.currentTime = 0;
 
       currentVoiceAudioRef.current = audio;
+      await audio.play();
+
       lastSpokenRef.current = text;
       lastSpokenAtRef.current = now;
 
       console.log('voice started:', text);
     } catch (e) {
-      console.log('voice error:', e);
+      console.log('voice play error:', e);
     }
   };
 

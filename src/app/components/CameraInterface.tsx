@@ -26,7 +26,7 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const zoomTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastAdviceTimeRef = useRef<number>(0);
-const ADVICE_COOLDOWN_MS = 10000;
+const ADVICE_COOLDOWN_MS = 15000;
 
   const [cameraStarted, setCameraStarted] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
@@ -86,6 +86,7 @@ const performCapture = useCallback(() => {
 
   const now = Date.now();
   const wait = ADVICE_COOLDOWN_MS - (now - lastAdviceTimeRef.current);
+
   if (wait > 0) {
     setAdvice(`Wait ${Math.ceil(wait / 1000)}s before analyzing again.`);
     return;
@@ -98,17 +99,18 @@ const performCapture = useCallback(() => {
   try {
     const smallImage = await resizeForAI(lastPhoto);
 
-    console.log("Sending /api/gemini request, image size:", smallImage?.length);
+    if (!smallImage || smallImage === "data:,") {
+      setAdvice("Invalid image for analysis.");
+      return;
+    }
 
-    const res = await fetch('/api/gemini', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("/api/gemini", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ image: smallImage }),
     });
 
     const raw = await res.text();
-    console.log("Gemini route status:", res.status);
-    console.log("Gemini route raw response:", raw);
 
     if (!res.ok) {
       setAdvice(`Server error ${res.status}`);
@@ -116,10 +118,11 @@ const performCapture = useCallback(() => {
     }
 
     let data: { tip?: string };
+
     try {
       data = JSON.parse(raw);
     } catch {
-      setAdvice("Invalid JSON from server.");
+      setAdvice("Invalid server response.");
       return;
     }
 

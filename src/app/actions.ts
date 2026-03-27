@@ -4,13 +4,26 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/ge
 
 cloudinary.config({ secure: true });
 
+// --- RATE LIMITER: не более 1 запроса в 15 секунд глобально ---
+let lastGeminiCallTime = 0;
+const GEMINI_COOLDOWN_MS = 15000;
+
 export async function getGeminiAdvice(base64Image: string): Promise<string> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return "System: API Key Missing";
 
+  // Проверка cooldown на сервере — не зависит от клиента
+  const now = Date.now();
+  const timeSinceLast = now - lastGeminiCallTime;
+  if (timeSinceLast < GEMINI_COOLDOWN_MS) {
+    const waitSec = Math.ceil((GEMINI_COOLDOWN_MS - timeSinceLast) / 1000);
+    return `Please wait ${waitSec}s before analyzing again.`;
+  }
+  lastGeminiCallTime = now;
+
   try {
     const genAI = new GoogleGenerativeAI(key);
-    const model = genAI.getGenerativeModel({ 
+    const model = genAI.getGenerativeModel({
       model: "gemini-2.0-flash",
       safetySettings: [
         { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
@@ -20,17 +33,26 @@ export async function getGeminiAdvice(base64Image: string): Promise<string> {
       ]
     });
 
-    const cleanBase64 = base64Image.includes("base64,") ? base64Image.split("base64,")[1] : base64Image;
+    const cleanBase64 = base64Image.includes("base64,")
+      ? base64Image.split("base64,")[1]
+      : base64Image;
+
     const prompt = `Act as a photography coach. Analyze this photo. Give ONE specific instruction to improve the pose, angle, or lighting. Max 10 words.`;
 
     const result = await model.generateContent([
       prompt,
       { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } }
     ]);
+
     return result.response.text() || "Adjust your angle.";
 
   } catch (error: any) {
-    if (error.message.includes("429")) return "Quota full. Wait 60s.";
+    const msg = error?.message ?? "";
+    if (msg.includes("429")) {
+      lastGeminiCallTime = now + 60000; // штрафной cooldown 60с после 429
+      return "Quota full. Wait 60s.";
+    }
+    console.error("Gemini error:", msg);
     return "Could not analyze photo.";
   }
 }
@@ -55,7 +77,7 @@ export async function getCloudImages(): Promise<string[]> {
     const { resources } = await cloudinary.search
       .expression('folder:aperture-ai')
       .sort_by('created_at', 'desc')
-      .max_results(30) 
+      .max_results(30)
       .execute();
 
     const now = Date.now();
@@ -63,20 +85,19 @@ export async function getCloudImages(): Promise<string[]> {
     const validImages: string[] = [];
     const expiredIds: string[] = [];
 
-    // Filter Logic
     resources.forEach((file: any) => {
-        const createdAt = new Date(file.created_at).getTime();
-        // If older than 5 mins, add to expired list, DO NOT add to validImages
-        if (now - createdAt > fiveMinutes) {
-            expiredIds.push(file.public_id);
-        } else {
-            validImages.push(file.secure_url);
-        }
+      const createdAt = new Date(file.created_at).getTime();
+      if (now - createdAt > fiveMinutes) {
+        expiredIds.push(file.public_id);
+      } else {
+        validImages.push(file.secure_url);
+      }
     });
 
-    // Attempt cleanup in background (won't block UI)
     if (expiredIds.length > 0) {
-        cloudinary.api.delete_resources(expiredIds).catch(e => console.log("Background delete cleanup"));
+      cloudinary.api.delete_resources(expiredIds).catch(() =>
+        console.log("Background delete cleanup")
+      );
     }
 
     return validImages.slice(0, 12);

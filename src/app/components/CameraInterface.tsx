@@ -67,6 +67,7 @@ const { startCamera: startCameraSession } = useCameraSession();
 
 const performCapture = useCallback(() => {
     if (!videoRef.current) return;
+    console.log("🎯 performCapture CALLED:", new Date().toISOString());
     playShutter();
     const flashDiv = document.getElementById('flash-overlay');
     if (flashDiv) {

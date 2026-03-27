@@ -2,7 +2,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, SwitchCamera, Timer, TimerOff, Zap, ZapOff, Sparkles, Ratio, Square, X, Loader2 } from 'lucide-react';
 import { usePoseTracker } from '../hooks/usePoseTracker';
-import { getGeminiAdvice } from '../actions'; 
 import TrackingHint from './TrackingHint';
 import { generateLiveHint } from '../utils/smartAdvice';
 import { useAudioGuide } from '../hooks/useAudioGuide';
@@ -98,8 +97,15 @@ const performCapture = useCallback(() => {
 
   try {
     const smallImage = await resizeForAI(lastPhoto);
-    const tip = await getGeminiAdvice(smallImage);
-    setAdvice(tip);
+
+const res = await fetch('/api/gemini', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ image: smallImage }),
+});
+
+const data = await res.json();
+setAdvice(data.tip);
   } catch {
     setAdvice("Connection error. Try again.");
   } finally {

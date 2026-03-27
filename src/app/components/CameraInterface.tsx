@@ -280,8 +280,21 @@ speakHint(hint);
       }
   }, [cameraStarted, autoCaptureEnabled, autoSessionActive, startTracking, stopTracking]);
 
-  const toggleTimer = () => 
-  setTimerDuration(p => p === 3 ? 5 : p === 5 ? 10 : 3);
+const toggleTimer = () =>
+  setTimerDuration((p) => {
+    if (autoCaptureEnabled) {
+      // AUTO → только 3/5/10
+      if (p === 3) return 5;
+      if (p === 5) return 10;
+      return 3;
+    }
+
+    // MANUAL → с 0
+    if (p === 0) return 3;
+    if (p === 3) return 5;
+    if (p === 5) return 10;
+    return 0;
+  });
   const switchCamera = async () => {
     const newMode = facingMode === 'user' ? 'environment' : 'user';
     setFacingMode(newMode);
@@ -383,9 +396,9 @@ speakHint(hint);
       {/* RIGHT: TIMER + VOICE */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         <button onClick={toggleTimer} style={iconBtn}>
-          {timerDuration === 0 ? (
-            <TimerOff size={20} />
-          ) : (
+          {!autoCaptureEnabled && timerDuration === 0 ? (
+  <TimerOff size={20} />
+) : (
             <div
               style={{
                 display: 'flex',

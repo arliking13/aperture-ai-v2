@@ -26,6 +26,8 @@ export default function CameraInterface({ onCapture, isProcessing }: CameraInter
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const zoomTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastAdviceTimeRef = useRef<number>(0);
+const ADVICE_COOLDOWN_MS = 10000;
 
   const [cameraStarted, setCameraStarted] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
@@ -80,19 +82,29 @@ const performCapture = useCallback(() => {
   }, [format, isMirrored, onCapture, playShutter]);
 
   const handleGetTip = async () => {
-      if (!lastPhoto || isLoadingAdvice) return;
-      setIsLoadingAdvice(true);
-      setAdvice(null);
-      try {
-        const smallImage = await resizeForAI(lastPhoto);
-        const tip = await getGeminiAdvice(smallImage); 
-        setAdvice(tip);
-      } catch (e) {
-        setAdvice("Connection error. Try again.");
-      } finally {
-        setIsLoadingAdvice(false);
-      }
-  };
+  if (!lastPhoto || isLoadingAdvice) return;
+
+  const now = Date.now();
+  const wait = ADVICE_COOLDOWN_MS - (now - lastAdviceTimeRef.current);
+  if (wait > 0) {
+    setAdvice(`Wait ${Math.ceil(wait / 1000)}s before analyzing again.`);
+    return;
+  }
+
+  lastAdviceTimeRef.current = now;
+  setIsLoadingAdvice(true);
+  setAdvice(null);
+
+  try {
+    const smallImage = await resizeForAI(lastPhoto);
+    const tip = await getGeminiAdvice(smallImage);
+    setAdvice(tip);
+  } catch {
+    setAdvice("Connection error. Try again.");
+  } finally {
+    setIsLoadingAdvice(false);
+  }
+};
 
  const {
   isAiReady,

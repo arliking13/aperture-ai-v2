@@ -7,9 +7,16 @@ import {
   HarmBlockThreshold,
 } from "@google/generative-ai";
 
+let dailyCalls = 0;
+const MAX_DAILY_CALLS = 30;
+
 cloudinary.config({ secure: true });
 
 export async function getGeminiAdvice(base64Image: string): Promise<string> {
+  if (dailyCalls >= MAX_DAILY_CALLS) {
+    return "Daily AI limit reached.";
+  }
+
   const key = process.env.GEMINI_API_KEY;
   if (!key) return "System: API key missing.";
 
@@ -20,6 +27,8 @@ export async function getGeminiAdvice(base64Image: string): Promise<string> {
   ) {
     return "Invalid image.";
   }
+
+  dailyCalls++;
 
   try {
     const genAI = new GoogleGenerativeAI(key);

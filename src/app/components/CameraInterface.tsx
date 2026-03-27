@@ -98,15 +98,34 @@ const performCapture = useCallback(() => {
   try {
     const smallImage = await resizeForAI(lastPhoto);
 
-const res = await fetch('/api/gemini', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ image: smallImage }),
-});
+    console.log("Sending /api/gemini request, image size:", smallImage?.length);
 
-const data = await res.json();
-setAdvice(data.tip);
-  } catch {
+    const res = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: smallImage }),
+    });
+
+    const raw = await res.text();
+    console.log("Gemini route status:", res.status);
+    console.log("Gemini route raw response:", raw);
+
+    if (!res.ok) {
+      setAdvice(`Server error ${res.status}`);
+      return;
+    }
+
+    let data: { tip?: string };
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      setAdvice("Invalid JSON from server.");
+      return;
+    }
+
+    setAdvice(data.tip || "No advice returned.");
+  } catch (error) {
+    console.error("handleGetTip failed:", error);
     setAdvice("Connection error. Try again.");
   } finally {
     setIsLoadingAdvice(false);

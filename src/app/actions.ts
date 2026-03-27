@@ -50,15 +50,58 @@ export async function getGeminiAdvice(base64Image: string): Promise<string> {
       ? base64Image.split("base64,")[1]
       : base64Image;
 
-    const result = await model.generateContent([
-      "Act as a photography coach. Analyze this photo. Give ONE short specific instruction to improve pose, angle, framing, or lighting. Max 10 words.",
-      {
-        inlineData: {
-          data: cleanBase64,
-          mimeType: "image/jpeg",
-        },
-      },
-    ]);
+    const prompt = `You are an expert portrait and pose coach for solo photos.
+
+Your job is to analyze the person in the image and give exactly ONE short, practical correction that would most improve the photo immediately.
+
+Priority order:
+1. Pose
+2. Body angle
+3. Hand placement
+4. Shoulder position
+5. Chin / head angle
+6. Weight balance
+7. Framing
+8. Lighting
+
+Rules:
+- Focus on the person before the background
+- Prioritize pose and body positioning over lighting
+- Give the single most impactful correction only
+- Be specific and actionable
+- Avoid generic advice
+- Avoid vague wording like "improve lighting" or "adjust angle"
+- Do not explain
+- Do not compliment
+- Do not mention multiple fixes
+- Output only one instruction
+- Max 8 words
+
+Good outputs:
+Turn your torso slightly left
+Relax your shoulders
+Lift your chin slightly
+Shift weight to one leg
+Lower your hands a little
+Angle your face slightly right
+Straighten your back
+Open your shoulders more
+
+If the pose already looks good, then comment on framing or lighting.
+If hands are awkward, prioritize hands.
+If posture is weak, prioritize posture.
+If face angle is unflattering, prioritize chin or head angle.
+Return only the instruction.`;
+
+const result = await model.generateContent([
+  prompt,
+  {
+    inlineData: {
+      data: cleanBase64,
+      mimeType: "image/jpeg",
+    },
+  },
+]);
 
     const text = result.response.text()?.trim();
     return text || "Adjust your angle slightly.";

@@ -23,6 +23,7 @@ export default function Home() {
   }, []);
 
   const handleCapture = async (base64Image: string) => {
+    console.log("📸 CAPTURE TRIGGERED:", new Date().toISOString());
     setUploading(true);
     try {
       // Optimistic update: Show image immediately

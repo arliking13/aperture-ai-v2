@@ -580,17 +580,86 @@ const toggleTimer = () =>
       )}
 
       {advice && (
-        <div style={{ width: '100%', maxWidth: '400px', background: '#1a1a1a', border: '1px solid #333', color: '#eee', padding: '16px', borderRadius: '16px', fontSize: 14, fontWeight: '500', lineHeight: '1.5', display: 'flex', gap: 12, alignItems: 'start', boxShadow: '0 4px 20px rgba(0,0,0,0.5)', animation: 'slideUp 0.3s ease-out', position: 'relative' }}>
-            <Sparkles size={20} color="#ffd700" style={{flexShrink:0, marginTop: 2}} />
-            <div style={{ flex: 1 }}>
-                <span style={{display: 'block', fontSize: 11, color: '#888', marginBottom: 4, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1}}>AI Feedback</span>
-                <span>{advice}</span>
-            </div>
-            <button onClick={() => setAdvice(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                <X size={14} color="#fff" />
-            </button>
-        </div>
-      )}
+  <div
+    style={{
+      width: '100%',
+      maxWidth: '520px',
+      minHeight: '110px',
+      background: '#1a1a1a',
+      border: '1px solid #333',
+      color: '#eee',
+      padding: '20px 20px 18px',
+      borderRadius: '18px',
+      fontSize: 16,
+      fontWeight: '500',
+      lineHeight: '1.7',
+      display: 'flex',
+      gap: 14,
+      alignItems: 'flex-start',
+      boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
+      animation: 'slideUp 0.3s ease-out',
+      position: 'relative'
+    }}
+  >
+    <Sparkles
+      size={20}
+      color="#ffd700"
+      style={{ flexShrink: 0, marginTop: 4 }}
+    />
+
+    <div style={{ flex: 1, paddingRight: 10 }}>
+      <span
+        style={{
+          display: 'block',
+          fontSize: 11,
+          color: '#888',
+          marginBottom: 8,
+          fontWeight: 'bold',
+          textTransform: 'uppercase',
+          letterSpacing: 1
+        }}
+      >
+        AI Feedback
+      </span>
+
+      <div
+        style={{
+          fontSize: 16,
+          lineHeight: '1.75',
+          color: '#f3f3f3',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word'
+        }}
+      >
+        {advice}
+      </div>
+    </div>
+
+    <button
+      onClick={() => setAdvice(null)}
+      style={{
+        background: 'rgba(255,255,255,0.08)',
+        border: 'none',
+        borderRadius: '50%',
+        width: 28,
+        height: 28,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        transition: '0.2s',
+      }}
+      onMouseEnter={(e) =>
+        (e.currentTarget.style.background = 'rgba(255,255,255,0.18)')
+      }
+      onMouseLeave={(e) =>
+        (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')
+      }
+    >
+      <X size={14} color="#fff" />
+    </button>
+  </div>
+)}
     </div>
   );
 }

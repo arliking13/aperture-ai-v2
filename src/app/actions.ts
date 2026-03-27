@@ -71,21 +71,21 @@ Rules:
 - Be specific and actionable
 - Avoid generic advice
 - Avoid vague wording like "improve lighting" or "adjust angle"
-- Do not explain
 - Do not compliment
 - Do not mention multiple fixes
 - Output only one instruction
-- Max 8 words
+- Max 12 words
+- Add slight context if needed
 
 Good outputs:
-Turn your torso slightly left
-Relax your shoulders
-Lift your chin slightly
-Shift weight to one leg
-Lower your hands a little
-Angle your face slightly right
-Straighten your back
-Open your shoulders more
+Turn your torso slightly left to create better depth
+Relax your shoulders to avoid stiffness
+Lift your chin slightly for a cleaner profile
+Shift weight to one leg for a natural stance
+Lower your hands slightly to reduce tension
+Angle your face slightly right for better symmetry
+Straighten your back to look more confident
+Open your shoulders for a stronger pose
 
 If the pose already looks good, then comment on framing or lighting.
 If hands are awkward, prioritize hands.

@@ -7,6 +7,9 @@ cloudinary.config({ secure: true });
 export async function getGeminiAdvice(base64Image: string): Promise<string> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return "System: API key missing.";
+   console.log("🔴 GEMINI CALLED:", new Date().toISOString());
+  console.trace();
+  
 
   try {
     const genAI = new GoogleGenerativeAI(key);

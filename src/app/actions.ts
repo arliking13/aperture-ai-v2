@@ -100,7 +100,9 @@ If the pose already looks good, then comment on framing or lighting.
 If hands are awkward, prioritize hands.
 If posture is weak, prioritize posture.
 If face angle is unflattering, prioritize chin or head angle.
-Return only the instruction.`;
+Return only the instruction.
+
+Do not repeat the example phrases exactly. Be specific to the person in the photo.`;
 
 const result = await model.generateContent([
   prompt,

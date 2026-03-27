@@ -1,15 +1,12 @@
-export const calculateMovement = (current: any[], previous: any[] | null): number => {
-  if (!previous) return 999;
-
-  const MOVEMENT_POINTS = [
+ const MOVEMENT_POINTS = [
   { index: 0, weight: 1.0 },   // nose
-  { index: 11, weight: 0.3 },  // left shoulder
-  { index: 12, weight: 0.3 },  // right shoulder
+  { index: 11, weight: 0.25 }, // left shoulder
+  { index: 12, weight: 0.25 }, // right shoulder
   { index: 23, weight: 1.0 },  // left hip
   { index: 24, weight: 1.0 },  // right hip
 ] as const;
 
-const MIN_VISIBILITY = 0.5;
+const MIN_VISIBILITY = 0.35;
 
 export const calculateMovement = (
   current: any[],
@@ -22,19 +19,15 @@ export const calculateMovement = (
 
   for (let i = 0; i < MOVEMENT_POINTS.length; i++) {
     const { index, weight } = MOVEMENT_POINTS[i];
-
     const c = current[index];
     const p = previous[index];
 
     if (!c || !p) continue;
 
-    // фильтр шумных или пропавших точек (особенно важно для боковой позы)
-    if (
-      (c.visibility !== undefined && c.visibility < MIN_VISIBILITY) ||
-      (p.visibility !== undefined && p.visibility < MIN_VISIBILITY)
-    ) {
-      continue;
-    }
+    const cVisible = c.visibility === undefined || c.visibility >= MIN_VISIBILITY;
+    const pVisible = p.visibility === undefined || p.visibility >= MIN_VISIBILITY;
+
+    if (!cVisible || !pVisible) continue;
 
     const dx = c.x - p.x;
     const dy = c.y - p.y;
